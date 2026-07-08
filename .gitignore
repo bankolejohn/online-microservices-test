@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+build/
+dist/
+*.exe
+*.out
+*.bin
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+venv/
+.venv/
+
+# Go
+*.test
+*.prof
+
+# Docker
+.docker/
+
+# Kubernetes
+*.kubeconfig
+
+# Coverage
+coverage/
+*.lcov
+htmlcov/
+.coverage
+
+# Chat logs / AI session files
+q-dev-chat-*.md
+
+# Kiro
+.kiro/

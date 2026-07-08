@@ -1,6 +1,11 @@
 #!/bin/bash
 
+set -e  # Exit on any error
+
 echo "Building all microservices Docker images..."
+
+# Use host Docker daemon instead of minikube's
+echo "Using host Docker daemon for building images..."
 
 # Build frontend service
 echo "Building frontend-service..."
@@ -45,6 +50,19 @@ docker build -t shipping-service:latest .
 cd ..
 
 echo "All Docker images built successfully!"
+echo ""
+echo "Loading images into minikube..."
+minikube image load frontend-service:latest
+minikube image load product-catalog-service:latest
+minikube image load cart-service:latest
+minikube image load user-authentication-service:latest
+minikube image load checkout-service:latest
+minikube image load payment-service:latest
+minikube image load shipping-service:latest
+
+echo ""
+echo "Verifying images in minikube:"
+minikube image ls | grep -E "(frontend|product|cart|checkout|payment|user|shipping)"
 echo ""
 echo "To deploy to Kubernetes, run:"
 echo "kubectl apply -k ."

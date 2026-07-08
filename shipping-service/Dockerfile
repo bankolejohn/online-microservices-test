@@ -1,17 +1,16 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy everything needed for the build
+COPY go.mod ./
+COPY *.go ./
 
-# Copy source code
-COPY . .
-
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+# Resolve dependencies and build
+RUN go mod tidy && \
+    go mod download && \
+    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
 # Production stage
 FROM alpine:latest

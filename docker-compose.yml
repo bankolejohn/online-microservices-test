@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Frontend Service (React app served by nginx, which also proxies /api/* to backends)
+  frontend:
+    build: ./frontend-service
+    ports:
+      - "3000:80"
+    depends_on:
+      - product-catalog
+      - cart
+      - auth
+      - checkout
+    networks:
+      - microservices
+
+  # Product Catalog Service
+  product-catalog:
+    build: ./product-catalog-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+    networks:
+      - microservices
+
+  # Cart Service
+  cart:
+    build: ./cart-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+    networks:
+      - microservices
+
+  # User Authentication Service
+  auth:
+    build: ./user-authentication-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    networks:
+      - microservices
+
+  # Checkout Service
+  checkout:
+    build: ./checkout-service
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - CART_SERVICE_URL=http://cart:3002
+      - PAYMENT_SERVICE_URL=http://payment:5002
+      - SHIPPING_SERVICE_URL=http://shipping:8080
+    depends_on:
+      - payment
+      - shipping
+      - cart
+    networks:
+      - microservices
+
+  # Payment Service
+  payment:
+    build: ./payment-service
+    ports:
+      - "5002:5002"
+    environment:
+      - FLASK_ENV=production
+    networks:
+      - microservices
+
+  # Shipping Service
+  shipping:
+    build: ./shipping-service
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    driver: bridge
