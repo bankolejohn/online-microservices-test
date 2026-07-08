@@ -2,20 +2,20 @@ version: '3.8'
 
 services:
   # Frontend Service (React app served by nginx, which also proxies /api/* to backends)
-  frontend:
+  frontend-service:
     build: ./frontend-service
     ports:
       - "3000:80"
     depends_on:
-      - product-catalog
-      - cart
-      - auth
-      - checkout
+      - product-catalog-service
+      - cart-service
+      - user-authentication-service
+      - checkout-service
     networks:
       - microservices
 
   # Product Catalog Service
-  product-catalog:
+  product-catalog-service:
     build: ./product-catalog-service
     ports:
       - "3001:3001"
@@ -25,7 +25,7 @@ services:
       - microservices
 
   # Cart Service
-  cart:
+  cart-service:
     build: ./cart-service
     ports:
       - "3002:3002"
@@ -35,7 +35,7 @@ services:
       - microservices
 
   # User Authentication Service
-  auth:
+  user-authentication-service:
     build: ./user-authentication-service
     ports:
       - "3003:3003"
@@ -46,24 +46,24 @@ services:
       - microservices
 
   # Checkout Service
-  checkout:
+  checkout-service:
     build: ./checkout-service
     ports:
       - "5001:5001"
     environment:
       - FLASK_ENV=production
-      - CART_SERVICE_URL=http://cart:3002
-      - PAYMENT_SERVICE_URL=http://payment:5002
-      - SHIPPING_SERVICE_URL=http://shipping:8080
+      - CART_SERVICE_URL=http://cart-service:3002
+      - PAYMENT_SERVICE_URL=http://payment-service:5002
+      - SHIPPING_SERVICE_URL=http://shipping-service:8080
     depends_on:
-      - payment
-      - shipping
-      - cart
+      - payment-service
+      - shipping-service
+      - cart-service
     networks:
       - microservices
 
   # Payment Service
-  payment:
+  payment-service:
     build: ./payment-service
     ports:
       - "5002:5002"
@@ -73,7 +73,7 @@ services:
       - microservices
 
   # Shipping Service
-  shipping:
+  shipping-service:
     build: ./shipping-service
     ports:
       - "8080:8080"
