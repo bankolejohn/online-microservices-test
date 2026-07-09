@@ -4,6 +4,9 @@ metadata:
   name: cart-service
   labels:
     app: cart-service
+    app.kubernetes.io/name: cart-service
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
@@ -22,7 +25,10 @@ spec:
         - containerPort: 3002
         env:
         - name: PORT
-          value: "3002"
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: CART_PORT
         resources:
           requests:
             memory: "128Mi"

@@ -4,6 +4,9 @@ metadata:
   name: payment-service
   labels:
     app: payment-service
+    app.kubernetes.io/name: payment-service
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
@@ -22,7 +25,10 @@ spec:
         - containerPort: 5002
         env:
         - name: PORT
-          value: "5002"
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: PAYMENT_PORT
         resources:
           requests:
             memory: "128Mi"

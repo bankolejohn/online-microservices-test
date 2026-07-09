@@ -4,6 +4,9 @@ metadata:
   name: checkout-service
   labels:
     app: checkout-service
+    app.kubernetes.io/name: checkout-service
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
@@ -22,13 +25,25 @@ spec:
         - containerPort: 5001
         env:
         - name: PORT
-          value: "5001"
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: CHECKOUT_PORT
         - name: CART_SERVICE_URL
-          value: "http://cart-service:3002"
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: CART_SERVICE_URL
         - name: PAYMENT_SERVICE_URL
-          value: "http://payment-service:5002"
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: PAYMENT_SERVICE_URL
         - name: SHIPPING_SERVICE_URL
-          value: "http://shipping-service:8080"
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: SHIPPING_SERVICE_URL
         resources:
           requests:
             memory: "128Mi"

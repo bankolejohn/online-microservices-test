@@ -4,6 +4,10 @@ vendor/
 
 # Build outputs
 build/
+
+# Real secrets (in production, NEVER commit secrets to git)
+# k8s/secrets-prod.yaml
+# k8s/overlays/prod/secrets.yaml
 dist/
 *.exe
 *.out

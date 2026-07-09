@@ -4,6 +4,9 @@ metadata:
   name: shipping-service
   labels:
     app: shipping-service
+    app.kubernetes.io/name: shipping-service
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
@@ -22,7 +25,10 @@ spec:
         - containerPort: 8080
         env:
         - name: PORT
-          value: "8080"
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: SHIPPING_PORT
         resources:
           requests:
             memory: "64Mi"
