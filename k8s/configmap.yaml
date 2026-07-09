@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-config
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/managed-by: kustomize
+data:
+  # Service ports
+  PRODUCT_CATALOG_PORT: "3001"
+  CART_PORT: "3002"
+  AUTH_PORT: "3003"
+  CHECKOUT_PORT: "5001"
+  PAYMENT_PORT: "5002"
+  SHIPPING_PORT: "8080"
+
+  # Inter-service URLs (used by checkout-service to call other services)
+  CART_SERVICE_URL: "http://cart-service:3002"
+  PAYMENT_SERVICE_URL: "http://payment-service:5002"
+  SHIPPING_SERVICE_URL: "http://shipping-service:8080"
