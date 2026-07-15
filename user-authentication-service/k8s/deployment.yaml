@@ -17,6 +17,7 @@ spec:
       labels:
         app: user-authentication-service
     spec:
+      serviceAccountName: auth-sa
       containers:
       - name: user-authentication-service
         image: user-authentication-service:latest

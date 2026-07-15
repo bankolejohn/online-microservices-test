@@ -17,6 +17,8 @@ spec:
       labels:
         app: shipping-service
     spec:
+      serviceAccountName: shipping-sa
+      automountServiceAccountToken: false
       containers:
       - name: shipping-service
         image: shipping-service:latest

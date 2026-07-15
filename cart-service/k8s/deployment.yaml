@@ -17,6 +17,8 @@ spec:
       labels:
         app: cart-service
     spec:
+      serviceAccountName: cart-sa
+      automountServiceAccountToken: false
       containers:
       - name: cart-service
         image: cart-service:latest

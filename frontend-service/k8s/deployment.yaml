@@ -17,6 +17,8 @@ spec:
       labels:
         app: frontend-service
     spec:
+      serviceAccountName: frontend-sa
+      automountServiceAccountToken: false
       containers:
       - name: frontend-service
         image: frontend-service:latest
