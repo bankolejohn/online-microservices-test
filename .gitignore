@@ -70,5 +70,8 @@ htmlcov/
 # Chat logs / AI session files
 q-dev-chat-*.md
 
+# Personal roadmap (not for git)
+docs/ROADMAP.md
+
 # Kiro
 .kiro/
