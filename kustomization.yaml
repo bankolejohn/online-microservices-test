@@ -12,6 +12,12 @@ resources:
   - k8s/configmap.yaml
   - k8s/secrets.yaml
 
+  # RBAC (ServiceAccounts, Roles, RoleBindings)
+  - k8s/rbac.yaml
+
+  # NetworkPolicies (zero-trust)
+  - k8s/network-policies.yaml
+
   # Frontend
   - frontend-service/k8s/deployment.yaml
   - frontend-service/k8s/service.yaml

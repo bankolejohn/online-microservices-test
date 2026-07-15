@@ -17,6 +17,8 @@ spec:
       labels:
         app: payment-service
     spec:
+      serviceAccountName: payment-sa
+      automountServiceAccountToken: false
       containers:
       - name: payment-service
         image: payment-service:latest
