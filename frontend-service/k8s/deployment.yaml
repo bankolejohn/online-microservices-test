@@ -23,6 +23,8 @@ spec:
       - name: frontend-service
         image: frontend-service:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 80
         resources:
