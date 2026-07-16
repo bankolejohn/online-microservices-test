@@ -19,10 +19,18 @@ spec:
     spec:
       serviceAccountName: cart-sa
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
       - name: cart-service
         image: cart-service:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 3002
         env:

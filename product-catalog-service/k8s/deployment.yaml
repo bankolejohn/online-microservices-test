@@ -19,10 +19,18 @@ spec:
     spec:
       serviceAccountName: product-catalog-sa
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
       - name: product-catalog-service
         image: product-catalog-service:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 3001
         env:

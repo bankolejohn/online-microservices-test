@@ -18,6 +18,12 @@ resources:
   # NetworkPolicies (zero-trust)
   - k8s/network-policies.yaml
 
+  # Resource management
+  - k8s/resource-quota.yaml
+  - k8s/limit-range.yaml
+  - k8s/pod-disruption-budgets.yaml
+  - k8s/hpa.yaml
+
   # Frontend
   - frontend-service/k8s/deployment.yaml
   - frontend-service/k8s/service.yaml

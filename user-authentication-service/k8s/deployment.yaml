@@ -18,10 +18,18 @@ spec:
         app: user-authentication-service
     spec:
       serviceAccountName: auth-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
       - name: user-authentication-service
         image: user-authentication-service:latest
         imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 3003
         env:

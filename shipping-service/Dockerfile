@@ -15,11 +15,16 @@ RUN go mod tidy && \
 # Production stage
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
+RUN apk --no-cache add ca-certificates && \
+    adduser -D -u 1000 appuser
 
-# Copy the binary from builder stage
+WORKDIR /app
+
+# Copy the binary and make it executable by all
 COPY --from=builder /app/main .
+RUN chmod +x ./main
+
+USER 1000
 
 EXPOSE 8080
 
