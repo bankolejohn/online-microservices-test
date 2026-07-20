@@ -1,0 +1,49 @@
+# ============================================================================
+# ServiceMonitors for the Shopping Application
+# ============================================================================
+# A ServiceMonitor tells Prometheus: "scrape metrics from these Services"
+# Prometheus Operator watches for ServiceMonitor resources and auto-configures
+# Prometheus to scrape the defined endpoints.
+# ============================================================================
+
+---
+# Monitor all backend Node.js services (product-catalog, cart, auth)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nodejs-services
+  namespace: monitoring
+  labels:
+    release: prometheus    # Must match Prometheus Operator's serviceMonitorSelector
+spec:
+  namespaceSelector:
+    matchNames:
+      - shopping
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  endpoints:
+  - port: http
+    path: /health
+    interval: 30s
+
+---
+# Monitor frontend service
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontend-service
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - shopping
+  selector:
+    matchLabels:
+      app: frontend-service
+  endpoints:
+  - port: http
+    path: /
+    interval: 30s

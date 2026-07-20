@@ -1,0 +1,68 @@
+# Custom values for kube-prometheus-stack Helm chart
+# This installs Prometheus, Grafana, and AlertManager together
+
+# Grafana configuration
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: admin123      # Change in production!
+  service:
+    type: ClusterIP
+  # Pre-built dashboards for Kubernetes
+  defaultDashboardsEnabled: true
+  # Data source for Loki (logs)
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring:3100
+      access: proxy
+      isDefault: false
+
+# Prometheus configuration
+prometheus:
+  prometheusSpec:
+    # Scrape all ServiceMonitors across all namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    # Resource limits for Prometheus itself
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    # Retention period
+    retention: 7d
+    # Storage (use emptyDir for local dev, PVC in production)
+    storageSpec: {}
+
+# AlertManager — we'll configure alerts later
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+# Node exporter — metrics from each node (CPU, disk, network)
+nodeExporter:
+  enabled: true
+
+# Kube-state-metrics — metrics about K8s objects (deployments, pods, etc.)
+kubeStateMetrics:
+  enabled: true
+
+# Reduce resource usage for local development
+prometheusOperator:
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
