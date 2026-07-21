@@ -26,9 +26,9 @@ spec:
       memory: "128Mi"
     # Maximum any single container can request
     max:
-      cpu: "1"
-      memory: "512Mi"
+      cpu: "2"
+      memory: "1Gi"
     # Minimum any single container must request
     min:
-      cpu: "50m"
-      memory: "64Mi"
+      cpu: "10m"
+      memory: "40Mi"

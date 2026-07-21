@@ -17,15 +17,15 @@ metadata:
 spec:
   hard:
     # CPU limits across all pods in this namespace
-    requests.cpu: "4"           # Total CPU requests can't exceed 4 cores
-    limits.cpu: "6"             # Total CPU limits can't exceed 6 cores
+    requests.cpu: "6"           # Total CPU requests can't exceed 6 cores
+    limits.cpu: "10"            # Total CPU limits can't exceed 10 cores
 
     # Memory limits across all pods in this namespace
-    requests.memory: "4Gi"      # Total memory requests can't exceed 4GB
-    limits.memory: "6Gi"        # Total memory limits can't exceed 6GB
+    requests.memory: "6Gi"      # Total memory requests can't exceed 6GB
+    limits.memory: "12Gi"       # Total memory limits can't exceed 12GB
 
     # Object count limits (prevent resource explosion)
-    pods: "30"                  # Max 30 pods in this namespace
+    pods: "40"                  # Max 40 pods in this namespace (with sidecars)
     services: "15"              # Max 15 services
     configmaps: "20"            # Max 20 ConfigMaps
     secrets: "20"               # Max 20 Secrets
