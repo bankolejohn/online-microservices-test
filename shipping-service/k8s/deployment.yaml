@@ -26,7 +26,7 @@ spec:
       containers:
       - name: shipping-service
         image: shipping-service:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

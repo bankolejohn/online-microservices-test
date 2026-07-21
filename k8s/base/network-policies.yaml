@@ -1,0 +1,190 @@
+# ============================================================================
+# NetworkPolicies for the Shopping Application
+# ============================================================================
+# Strategy: DENY ALL by default, then ALLOW specific communication paths.
+# This is "zero-trust networking" — nothing can talk to anything unless
+# explicitly permitted.
+# ============================================================================
+
+---
+# STEP 1: Default Deny All Ingress Traffic
+# This locks down the entire namespace. No pod can receive traffic
+# unless a NetworkPolicy explicitly allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: shopping
+spec:
+  podSelector: {}    # Empty selector = applies to ALL pods in namespace
+  policyTypes:
+  - Ingress          # Block all incoming traffic by default
+
+---
+# STEP 2: Allow frontend-service to receive traffic from Ingress Controller
+# The frontend needs to accept traffic from outside the namespace
+# (from the ingress-nginx namespace where the Ingress Controller runs)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-from-ingress
+  namespace: shopping
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    # Allow from ingress-nginx namespace
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    # Also allow direct port-forward (for development)
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 80
+
+---
+# STEP 3: Allow product-catalog-service to receive traffic from frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-product-catalog-from-frontend
+  namespace: shopping
+spec:
+  podSelector:
+    matchLabels:
+      app: product-catalog-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend-service
+    ports:
+    - protocol: TCP
+      port: 3001
+
+---
+# STEP 4: Allow cart-service to receive traffic from frontend AND checkout
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cart-from-frontend-and-checkout
+  namespace: shopping
+spec:
+  podSelector:
+    matchLabels:
+      app: cart-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend-service
+    - podSelector:
+        matchLabels:
+          app: checkout-service
+    ports:
+    - protocol: TCP
+      port: 3002
+
+---
+# STEP 5: Allow user-authentication-service to receive traffic from frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-auth-from-frontend
+  namespace: shopping
+spec:
+  podSelector:
+    matchLabels:
+      app: user-authentication-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend-service
+    ports:
+    - protocol: TCP
+      port: 3003
+
+---
+# STEP 6: Allow checkout-service to receive traffic from frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-checkout-from-frontend
+  namespace: shopping
+spec:
+  podSelector:
+    matchLabels:
+      app: checkout-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend-service
+    ports:
+    - protocol: TCP
+      port: 5001
+
+---
+# STEP 7: Allow payment-service to receive traffic from frontend AND checkout
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-payment-from-frontend-and-checkout
+  namespace: shopping
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend-service
+    - podSelector:
+        matchLabels:
+          app: checkout-service
+    ports:
+    - protocol: TCP
+      port: 5002
+
+---
+# STEP 8: Allow shipping-service to receive traffic from frontend AND checkout
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-shipping-from-frontend-and-checkout
+  namespace: shopping
+spec:
+  podSelector:
+    matchLabels:
+      app: shipping-service
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend-service
+    - podSelector:
+        matchLabels:
+          app: checkout-service
+    ports:
+    - protocol: TCP
+      port: 8080

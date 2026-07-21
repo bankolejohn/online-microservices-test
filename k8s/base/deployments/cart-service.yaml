@@ -6,7 +6,6 @@ metadata:
     app: cart-service
     app.kubernetes.io/name: cart-service
     app.kubernetes.io/component: backend
-    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
@@ -25,8 +24,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: cart-service
-        image: cart-service:latest
-        imagePullPolicy: IfNotPresent
+        image: cart-service
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

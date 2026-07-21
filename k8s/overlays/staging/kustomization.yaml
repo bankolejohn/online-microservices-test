@@ -1,0 +1,44 @@
+# ============================================================================
+# Staging Overlay — pre-production environment
+# ============================================================================
+# - 2 replicas (matches production topology)
+# - Pulls images from GHCR (same as prod)
+# - Same resource limits as base
+# - HPA enabled (test autoscaling behavior)
+# - Uses git SHA tags for image pinning
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: shopping
+
+commonLabels:
+  environment: staging
+
+# Images pulled from GHCR with specific SHA tags
+# Updated automatically by CD pipeline on merge to main
+images:
+  - name: frontend-service
+    newName: ghcr.io/bankolejohn/online-shopping/frontend-service
+    newTag: latest
+  - name: product-catalog-service
+    newName: ghcr.io/bankolejohn/online-shopping/product-catalog-service
+    newTag: latest
+  - name: cart-service
+    newName: ghcr.io/bankolejohn/online-shopping/cart-service
+    newTag: latest
+  - name: user-authentication-service
+    newName: ghcr.io/bankolejohn/online-shopping/user-authentication-service
+    newTag: latest
+  - name: checkout-service
+    newName: ghcr.io/bankolejohn/online-shopping/checkout-service
+    newTag: latest
+  - name: payment-service
+    newName: ghcr.io/bankolejohn/online-shopping/payment-service
+    newTag: latest
+  - name: shipping-service
+    newName: ghcr.io/bankolejohn/online-shopping/shipping-service
+    newTag: latest

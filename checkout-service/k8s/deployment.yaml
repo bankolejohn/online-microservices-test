@@ -25,7 +25,7 @@ spec:
       containers:
       - name: checkout-service
         image: checkout-service:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

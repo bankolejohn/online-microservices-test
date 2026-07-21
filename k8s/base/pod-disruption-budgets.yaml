@@ -1,0 +1,97 @@
+# ============================================================================
+# Pod Disruption Budgets (PDB)
+# ============================================================================
+# PDBs protect your application during VOLUNTARY disruptions:
+# - Node drains (kubectl drain)
+# - Cluster upgrades
+# - Node autoscaler removing nodes
+#
+# They do NOT protect against involuntary disruptions (node crash, OOM kill).
+#
+# With 2 replicas per service, we ensure at least 1 is always available.
+# This means Kubernetes won't evict both pods simultaneously.
+# ============================================================================
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: shopping
+spec:
+  minAvailable: 1              # At least 1 pod must stay running
+  selector:
+    matchLabels:
+      app: frontend-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: product-catalog-pdb
+  namespace: shopping
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: product-catalog-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cart-pdb
+  namespace: shopping
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cart-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-pdb
+  namespace: shopping
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-authentication-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: checkout-pdb
+  namespace: shopping
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: checkout-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-pdb
+  namespace: shopping
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: payment-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: shipping-pdb
+  namespace: shopping
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: shipping-service

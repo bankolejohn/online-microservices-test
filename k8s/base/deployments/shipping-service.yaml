@@ -1,60 +1,58 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-service
+  name: shipping-service
   labels:
-    app: cart-service
-    app.kubernetes.io/name: cart-service
+    app: shipping-service
+    app.kubernetes.io/name: shipping-service
     app.kubernetes.io/component: backend
-    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: cart-service
+      app: shipping-service
   template:
     metadata:
       labels:
-        app: cart-service
+        app: shipping-service
     spec:
-      serviceAccountName: cart-sa
+      serviceAccountName: shipping-sa
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
       containers:
-      - name: cart-service
-        image: cart-service:latest
-        imagePullPolicy: IfNotPresent
+      - name: shipping-service
+        image: shipping-service
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
         ports:
-        - containerPort: 3002
+        - containerPort: 8080
         env:
         - name: PORT
           valueFrom:
             configMapKeyRef:
               name: service-config
-              key: CART_PORT
+              key: SHIPPING_PORT
         resources:
           requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
             memory: "128Mi"
             cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
         livenessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5

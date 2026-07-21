@@ -1,0 +1,82 @@
+# ============================================================================
+# Horizontal Pod Autoscalers (HPA)
+# ============================================================================
+# HPAs automatically scale the number of pod replicas based on observed
+# CPU/memory utilization. When load increases, more pods spin up.
+# When load decreases, pods scale back down.
+#
+# Requirements:
+# - metrics-server must be running in the cluster
+# - Pods MUST have resource requests defined (HPA uses requests as baseline)
+#
+# How it works:
+# 1. HPA checks metrics every 15 seconds (default)
+# 2. Calculates: desiredReplicas = ceil(currentMetricValue / targetValue * currentReplicas)
+# 3. If desiredReplicas != currentReplicas, it scales the deployment
+# ============================================================================
+
+---
+# Frontend HPA — scales based on CPU (user-facing, traffic-sensitive)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: shopping
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend-service
+  minReplicas: 2           # Never go below 2 (availability)
+  maxReplicas: 5           # Cap at 5 (resource budget)
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70    # Scale up when avg CPU > 70% of request
+
+---
+# Checkout HPA — most resource-intensive (calls payment + shipping)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: checkout-hpa
+  namespace: shopping
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: checkout-service
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60    # Lower threshold — checkout is critical path
+
+---
+# Product Catalog HPA — most queried service (browse products)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: product-catalog-hpa
+  namespace: shopping
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: product-catalog-service
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

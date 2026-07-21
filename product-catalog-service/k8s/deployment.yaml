@@ -26,7 +26,7 @@ spec:
       containers:
       - name: product-catalog-service
         image: product-catalog-service:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

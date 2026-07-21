@@ -1,0 +1,58 @@
+# ============================================================================
+# Kustomize Base — shared manifests across all environments
+# ============================================================================
+# This is the single source of truth for the application's Kubernetes resources.
+# Environment-specific differences (replicas, resource limits, image tags)
+# are handled by overlays in k8s/overlays/{dev,staging,prod}.
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: shopping
+
+commonLabels:
+  app.kubernetes.io/part-of: online-shopping
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  # Namespace
+  - namespace.yaml
+
+  # ConfigMaps and Secrets
+  - configmap.yaml
+  - secrets.yaml
+
+  # RBAC (ServiceAccounts, Roles, RoleBindings)
+  - rbac.yaml
+
+  # NetworkPolicies (zero-trust)
+  - network-policies.yaml
+
+  # Resource management
+  - resource-quota.yaml
+  - limit-range.yaml
+  - pod-disruption-budgets.yaml
+  - hpa.yaml
+
+  # Service deployments and services
+  - deployments/frontend-service.yaml
+  - services/frontend-service.yaml
+  - deployments/product-catalog-service.yaml
+  - services/product-catalog-service.yaml
+  - deployments/cart-service.yaml
+  - services/cart-service.yaml
+  - deployments/user-authentication-service.yaml
+  - services/user-authentication-service.yaml
+  - deployments/checkout-service.yaml
+  - services/checkout-service.yaml
+  - deployments/payment-service.yaml
+  - services/payment-service.yaml
+  - deployments/shipping-service.yaml
+  - services/shipping-service.yaml
+
+  # Ingress
+  - ingress.yaml
+
+# NOTE: Image references are defined in each overlay (dev/staging/prod).
+# The base uses bare image names (e.g., "cart-service") which overlays
+# transform to the appropriate registry path and tag.

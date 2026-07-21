@@ -1,44 +1,42 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-service
+  name: payment-service
   labels:
-    app: cart-service
-    app.kubernetes.io/name: cart-service
+    app: payment-service
+    app.kubernetes.io/name: payment-service
     app.kubernetes.io/component: backend
-    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: cart-service
+      app: payment-service
   template:
     metadata:
       labels:
-        app: cart-service
+        app: payment-service
     spec:
-      serviceAccountName: cart-sa
+      serviceAccountName: payment-sa
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
       containers:
-      - name: cart-service
-        image: cart-service:latest
-        imagePullPolicy: IfNotPresent
+      - name: payment-service
+        image: payment-service
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
         ports:
-        - containerPort: 3002
+        - containerPort: 5002
         env:
         - name: PORT
           valueFrom:
             configMapKeyRef:
               name: service-config
-              key: CART_PORT
+              key: PAYMENT_PORT
         resources:
           requests:
             memory: "128Mi"
@@ -49,12 +47,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 5002
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 5002
           initialDelaySeconds: 5
           periodSeconds: 5

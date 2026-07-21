@@ -1,0 +1,34 @@
+# ============================================================================
+# LimitRange for the shopping namespace
+# ============================================================================
+# This sets DEFAULT resource values for pods that don't specify their own,
+# and enforces MIN/MAX boundaries that no pod can exceed.
+#
+# Without this, someone could deploy a pod requesting 100Gi of memory
+# and blow the entire node. LimitRange prevents that.
+# ============================================================================
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: shopping-limits
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+spec:
+  limits:
+  - type: Container
+    # Default values (applied if a container doesn't specify resources)
+    default:
+      cpu: "200m"
+      memory: "256Mi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    # Maximum any single container can request
+    max:
+      cpu: "2"
+      memory: "1Gi"
+    # Minimum any single container must request
+    min:
+      cpu: "10m"
+      memory: "40Mi"

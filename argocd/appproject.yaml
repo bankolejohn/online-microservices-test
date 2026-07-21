@@ -1,0 +1,112 @@
+# ============================================================================
+# ArgoCD AppProject — online-shopping
+# ============================================================================
+# An AppProject defines the boundaries for ArgoCD Applications:
+#   - Which git repos it can pull from
+#   - Which clusters/namespaces it can deploy to
+#   - Which Kubernetes resources it's allowed to create
+#
+# This follows least-privilege: the online-shopping project can ONLY deploy
+# to the shopping namespace, and can only create the resource types our
+# application actually needs.
+# ============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: online-shopping
+  namespace: argocd
+  # Finalizer ensures ArgoCD cleans up applications if the project is deleted
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Online Shopping microservices platform
+
+  # Source repositories this project is allowed to pull from
+  sourceRepos:
+    - 'https://github.com/bankolejohn/online-microservices-test.git'
+    # Allow HTTPS and SSH variations
+    - 'git@github.com:bankolejohn/online-microservices-test.git'
+
+  # Destination clusters and namespaces this project can deploy to
+  destinations:
+    # Staging — same cluster, shopping namespace
+    - server: https://kubernetes.default.svc
+      namespace: shopping
+    # ArgoCD needs access to its own namespace for Application status
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+
+  # Allowed Kubernetes resource types (least-privilege)
+  # Only the resources our application actually uses
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+
+  namespaceResourceWhitelist:
+    # Core resources
+    - group: ''
+      kind: ConfigMap
+    - group: ''
+      kind: Secret
+    - group: ''
+      kind: Service
+    - group: ''
+      kind: ServiceAccount
+    - group: ''
+      kind: PersistentVolumeClaim
+
+    # Workloads
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: ReplicaSet
+
+    # Autoscaling
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+
+    # Networking
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+
+    # RBAC
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+
+    # Policy
+    - group: policy
+      kind: PodDisruptionBudget
+
+    # Resource management
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+
+  # Roles within this project (for fine-grained access control)
+  roles:
+    # Read-only role for developers (can view but not sync)
+    - name: developer
+      description: Read-only access to application status
+      policies:
+        - p, proj:online-shopping:developer, applications, get, online-shopping/*, allow
+        - p, proj:online-shopping:developer, applications, sync, online-shopping/online-shopping-staging, allow
+      groups:
+        - developers
+
+    # Admin role (can sync both staging and production)
+    - name: admin
+      description: Full access to deploy and manage applications
+      policies:
+        - p, proj:online-shopping:admin, applications, *, online-shopping/*, allow
+      groups:
+        - platform-team
+
+  # Orphaned resources monitoring — detect resources that exist in the
+  # namespace but aren't tracked by ArgoCD
+  orphanedResources:
+    warn: true
