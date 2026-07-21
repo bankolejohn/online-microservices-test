@@ -6,7 +6,6 @@ metadata:
     app: frontend-service
     app.kubernetes.io/name: frontend-service
     app.kubernetes.io/component: frontend
-    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
@@ -21,10 +20,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: frontend-service
-        image: frontend-service:latest
-        imagePullPolicy: IfNotPresent
-        securityContext:
-          allowPrivilegeEscalation: false
+        image: frontend-service
         ports:
         - containerPort: 80
         resources:
@@ -34,3 +30,5 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
+        securityContext:
+          allowPrivilegeEscalation: false

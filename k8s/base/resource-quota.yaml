@@ -1,0 +1,32 @@
+# ============================================================================
+# Resource Quota for the shopping namespace
+# ============================================================================
+# This puts a hard ceiling on the TOTAL resources the entire namespace can use.
+# If a deployment tries to exceed this, the pod creation will be REJECTED.
+#
+# Think of it like a departmental budget — the shopping team gets X amount
+# of compute, and they can't go over no matter how many pods they create.
+# ============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: shopping-quota
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+spec:
+  hard:
+    # CPU limits across all pods in this namespace
+    requests.cpu: "6"           # Total CPU requests can't exceed 6 cores
+    limits.cpu: "10"            # Total CPU limits can't exceed 10 cores
+
+    # Memory limits across all pods in this namespace
+    requests.memory: "6Gi"      # Total memory requests can't exceed 6GB
+    limits.memory: "12Gi"       # Total memory limits can't exceed 12GB
+
+    # Object count limits (prevent resource explosion)
+    pods: "40"                  # Max 40 pods in this namespace (with sidecars)
+    services: "15"              # Max 15 services
+    configmaps: "20"            # Max 20 ConfigMaps
+    secrets: "20"               # Max 20 Secrets
+    persistentvolumeclaims: "10" # Max 10 PVCs (for when we add databases)

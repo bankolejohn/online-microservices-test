@@ -1,0 +1,102 @@
+# ============================================================================
+# Dev Overlay — local Kind cluster development
+# ============================================================================
+# - 1 replica per service (save resources)
+# - imagePullPolicy: Never (images loaded directly into Kind)
+# - Lower resource limits
+# - No HPA (not needed locally)
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: shopping
+
+commonLabels:
+  environment: dev
+
+patches:
+  # Scale down all deployments to 1 replica for local dev
+  - target:
+      kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # Use imagePullPolicy: Never for local Kind images
+  - target:
+      kind: Deployment
+      name: frontend-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: product-catalog-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: cart-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: user-authentication-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: checkout-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: payment-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+  - target:
+      kind: Deployment
+      name: shipping-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never
+
+# In dev, use local image names (loaded into Kind via `kind load docker-image`)
+images:
+  - name: frontend-service
+    newName: frontend-service
+    newTag: latest
+  - name: product-catalog-service
+    newName: product-catalog-service
+    newTag: latest
+  - name: cart-service
+    newName: cart-service
+    newTag: latest
+  - name: user-authentication-service
+    newName: user-authentication-service
+    newTag: latest
+  - name: checkout-service
+    newName: checkout-service
+    newTag: latest
+  - name: payment-service
+    newName: payment-service
+    newTag: latest
+  - name: shipping-service
+    newName: shipping-service
+    newTag: latest

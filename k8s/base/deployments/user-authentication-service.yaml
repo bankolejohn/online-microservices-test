@@ -1,44 +1,46 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-service
+  name: user-authentication-service
   labels:
-    app: cart-service
-    app.kubernetes.io/name: cart-service
+    app: user-authentication-service
+    app.kubernetes.io/name: user-authentication-service
     app.kubernetes.io/component: backend
-    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: cart-service
+      app: user-authentication-service
   template:
     metadata:
       labels:
-        app: cart-service
+        app: user-authentication-service
     spec:
-      serviceAccountName: cart-sa
-      automountServiceAccountToken: false
+      serviceAccountName: auth-sa
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
       containers:
-      - name: cart-service
-        image: cart-service:latest
-        imagePullPolicy: IfNotPresent
+      - name: user-authentication-service
+        image: user-authentication-service
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
         ports:
-        - containerPort: 3002
+        - containerPort: 3003
         env:
         - name: PORT
           valueFrom:
             configMapKeyRef:
               name: service-config
-              key: CART_PORT
+              key: AUTH_PORT
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: auth-secrets
+              key: jwt-secret
         resources:
           requests:
             memory: "128Mi"
@@ -49,12 +51,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 3003
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 3003
           initialDelaySeconds: 5
           periodSeconds: 5

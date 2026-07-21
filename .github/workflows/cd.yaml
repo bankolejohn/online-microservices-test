@@ -1,0 +1,207 @@
+# ============================================================================
+# CD Pipeline — Update Kustomize Image Tags (GitOps)
+# ============================================================================
+# Triggers:
+#   - After CI completes successfully on main branch
+#
+# What it does:
+#   1. Updates image tags in k8s/overlays/staging/kustomization.yaml
+#   2. Commits the change back to the repo
+#   3. ArgoCD detects the new commit and auto-syncs the cluster
+#
+# Production promotion:
+#   - Staging auto-deploys on merge to main
+#   - Production requires manual workflow dispatch (approval gate)
+#
+# This is the "GitOps bridge" — CI produces images, CD updates git,
+# ArgoCD reconciles git → cluster. Git is the single source of truth.
+# ============================================================================
+name: CD — Deploy via GitOps
+
+on:
+  workflow_run:
+    workflows: ["CI — Build and Push Images"]
+    types: [completed]
+    branches: [main]
+
+  # Manual trigger for production promotion
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: 'Image tag to deploy (e.g., sha-a1b2c3d or v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/online-shopping
+
+# Only one deploy at a time per environment
+concurrency:
+  group: cd-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  # ===========================================================================
+  # Deploy to Staging — automatic on successful CI
+  # ===========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    permissions:
+      contents: write    # Required to push the tag update commit
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            # Use the short SHA from the CI run's head commit
+            SHORT_SHA=$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)
+            echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Update staging image tags
+        run: |
+          cd k8s/overlays/staging
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          # Update all service image tags using kustomize edit
+          for SERVICE in frontend-service product-catalog-service cart-service user-authentication-service checkout-service payment-service shipping-service; do
+            kustomize edit set image "${SERVICE}=${IMAGE_PREFIX}/${SERVICE}:${TAG}"
+          done
+
+          echo "Updated staging overlay to tag: ${TAG}"
+          cat kustomization.yaml
+
+      - name: Commit and push tag update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          # Only commit if there are actual changes
+          if git diff --quiet k8s/overlays/staging/; then
+            echo "No changes to commit — images already at ${TAG}"
+            exit 0
+          fi
+
+          git add k8s/overlays/staging/kustomization.yaml
+          git commit -m "deploy(staging): update images to ${TAG}
+
+          Automated by CD pipeline.
+          Trigger: ${{ github.event_name }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}"
+
+          git push origin main
+
+      - name: Deployment summary
+        run: |
+          echo "## Staging Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Environment | staging |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image Tag | \`${{ steps.tag.outputs.tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Trigger | ${{ github.event_name }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | ${{ github.event.workflow_run.head_sha || github.sha }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "ArgoCD will auto-sync this change within 3 minutes." >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  # Deploy to Production — manual approval required
+  # ===========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment: production    # Requires environment protection rules in GitHub
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Set up Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Verify image exists in registry
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          echo "Verifying images exist for tag: ${TAG}"
+
+          for SERVICE in frontend-service product-catalog-service cart-service user-authentication-service checkout-service payment-service shipping-service; do
+            echo "Checking ${IMAGE_PREFIX}/${SERVICE}:${TAG}..."
+            docker manifest inspect "${IMAGE_PREFIX}/${SERVICE}:${TAG}" > /dev/null 2>&1 || {
+              echo "ERROR: Image ${IMAGE_PREFIX}/${SERVICE}:${TAG} not found in registry!"
+              exit 1
+            }
+          done
+          echo "All images verified."
+
+      - name: Update production image tags
+        run: |
+          cd k8s/overlays/prod
+          TAG="${{ github.event.inputs.image_tag }}"
+
+          for SERVICE in frontend-service product-catalog-service cart-service user-authentication-service checkout-service payment-service shipping-service; do
+            kustomize edit set image "${SERVICE}=${IMAGE_PREFIX}/${SERVICE}:${TAG}"
+          done
+
+          echo "Updated production overlay to tag: ${TAG}"
+          cat kustomization.yaml
+
+      - name: Commit and push tag update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          TAG="${{ github.event.inputs.image_tag }}"
+
+          if git diff --quiet k8s/overlays/prod/; then
+            echo "No changes to commit — images already at ${TAG}"
+            exit 0
+          fi
+
+          git add k8s/overlays/prod/kustomization.yaml
+          git commit -m "deploy(prod): update images to ${TAG}
+
+          Automated by CD pipeline.
+          Manual promotion by: ${{ github.actor }}
+          Previously deployed to staging."
+
+          git push origin main
+
+      - name: Deployment summary
+        run: |
+          echo "## Production Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Environment | production |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image Tag | \`${{ github.event.inputs.image_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Promoted by | ${{ github.actor }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "ArgoCD will auto-sync this change within 3 minutes." >> "$GITHUB_STEP_SUMMARY"

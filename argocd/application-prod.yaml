@@ -1,0 +1,78 @@
+# ============================================================================
+# ArgoCD Application — Production Environment
+# ============================================================================
+# Key differences from staging:
+#   - NO automated sync — production requires manual approval
+#   - Sync windows restrict WHEN deployments can happen
+#   - Notifications configured for deploy events
+#
+# Deployment workflow:
+#   1. Image proven stable in staging
+#   2. Engineer triggers CD workflow (workflow_dispatch) to update prod overlay
+#   3. ArgoCD detects the change but does NOT auto-sync
+#   4. Engineer reviews the diff in ArgoCD UI
+#   5. Engineer clicks "Sync" (or runs `argocd app sync online-shopping-prod`)
+#   6. ArgoCD applies the change with health checks
+#   7. If health check fails, ArgoCD auto-rolls back (degraded → previous revision)
+# ============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: online-shopping-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    environment: production
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  # Annotations for notifications (if argocd-notifications is installed)
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: production-deploys
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: production-alerts
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: production-alerts
+spec:
+  project: online-shopping
+
+  # Source — production overlay
+  source:
+    repoURL: https://github.com/bankolejohn/online-microservices-test.git
+    targetRevision: main
+    path: k8s/overlays/prod
+
+  # Destination — same cluster for this learning project
+  # In production, this would point to a separate production cluster
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shopping
+
+  # Sync policy — NO automated sync for production
+  syncPolicy:
+    # Automated is intentionally OMITTED — requires manual sync
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+
+    # Retry on sync failure (when manually triggered)
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+
+  # Ignore differences
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas    # HPA manages replicas
+    - group: ''
+      kind: Service
+      jsonPointers:
+        - /spec/clusterIP
+
+  revisionHistoryLimit: 10    # Keep more history for production auditing

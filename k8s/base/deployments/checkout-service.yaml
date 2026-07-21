@@ -1,44 +1,56 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-service
+  name: checkout-service
   labels:
-    app: cart-service
-    app.kubernetes.io/name: cart-service
+    app: checkout-service
+    app.kubernetes.io/name: checkout-service
     app.kubernetes.io/component: backend
-    app.kubernetes.io/part-of: online-shopping
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: cart-service
+      app: checkout-service
   template:
     metadata:
       labels:
-        app: cart-service
+        app: checkout-service
     spec:
-      serviceAccountName: cart-sa
-      automountServiceAccountToken: false
+      serviceAccountName: checkout-sa
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
       containers:
-      - name: cart-service
-        image: cart-service:latest
-        imagePullPolicy: IfNotPresent
+      - name: checkout-service
+        image: checkout-service
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
         ports:
-        - containerPort: 3002
+        - containerPort: 5001
         env:
         - name: PORT
           valueFrom:
             configMapKeyRef:
               name: service-config
-              key: CART_PORT
+              key: CHECKOUT_PORT
+        - name: CART_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: CART_SERVICE_URL
+        - name: PAYMENT_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: PAYMENT_SERVICE_URL
+        - name: SHIPPING_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: service-config
+              key: SHIPPING_SERVICE_URL
         resources:
           requests:
             memory: "128Mi"
@@ -49,12 +61,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 5001
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 5001
           initialDelaySeconds: 5
           periodSeconds: 5

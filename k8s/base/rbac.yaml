@@ -1,0 +1,137 @@
+# ============================================================================
+# RBAC (Role-Based Access Control) for the Shopping Application
+# ============================================================================
+# Strategy: Each service gets its own ServiceAccount with minimal permissions.
+# No service uses the default ServiceAccount (which may have broader access).
+# ============================================================================
+
+---
+# ServiceAccount for frontend-service
+# Frontend doesn't need any Kubernetes API access — it just serves static files
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-sa
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: frontend
+
+---
+# ServiceAccount for product-catalog-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: product-catalog-sa
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: backend
+
+---
+# ServiceAccount for cart-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cart-sa
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: backend
+
+---
+# ServiceAccount for user-authentication-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: auth-sa
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: backend
+
+---
+# ServiceAccount for checkout-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: checkout-sa
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: backend
+
+---
+# ServiceAccount for payment-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment-sa
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: backend
+
+---
+# ServiceAccount for shipping-service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shipping-sa
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: backend
+
+---
+# Role: allows reading ConfigMaps and Secrets in the shopping namespace
+# Only services that NEED config access get this role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: config-reader
+  namespace: shopping
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["auth-secrets"]    # Only allow reading this specific secret
+  verbs: ["get"]
+
+---
+# RoleBinding: give checkout-service access to read config
+# (it needs to read service URLs from ConfigMap)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: checkout-config-reader
+  namespace: shopping
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: config-reader
+subjects:
+- kind: ServiceAccount
+  name: checkout-sa
+  namespace: shopping
+
+---
+# RoleBinding: give auth-service access to read secrets
+# (it needs the JWT secret)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: auth-config-reader
+  namespace: shopping
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: config-reader
+subjects:
+- kind: ServiceAccount
+  name: auth-sa
+  namespace: shopping

@@ -1,0 +1,80 @@
+# ============================================================================
+# ArgoCD Application — Staging Environment
+# ============================================================================
+# This Application CRD tells ArgoCD:
+#   - WHERE to find the manifests (git repo + path to staging overlay)
+#   - WHERE to deploy them (cluster + namespace)
+#   - HOW to sync (automated, with self-heal and pruning)
+#
+# Auto-sync behavior:
+#   - When CD pipeline commits a new image tag to k8s/overlays/staging/,
+#     ArgoCD detects the change within ~3 minutes (default poll interval)
+#     and automatically applies the new manifests to the cluster.
+#   - Self-heal: if someone manually changes something via kubectl,
+#     ArgoCD reverts it back to match git (git is the source of truth).
+#   - Prune: if a resource is removed from git, ArgoCD deletes it from
+#     the cluster (prevents orphaned resources).
+# ============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: online-shopping-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: online-shopping
+    environment: staging
+  # Finalizer ensures resources are cleaned up if the Application is deleted
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: online-shopping
+
+  # Source — where to find the Kubernetes manifests
+  source:
+    repoURL: https://github.com/bankolejohn/online-microservices-test.git
+    targetRevision: main
+    path: k8s/overlays/staging
+
+  # Destination — where to deploy
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shopping
+
+  # Sync policy — how ArgoCD manages this application
+  syncPolicy:
+    # Automated sync — deploys automatically when git changes
+    automated:
+      prune: true        # Delete resources removed from git
+      selfHeal: true     # Revert manual kubectl changes to match git
+      allowEmpty: false  # Don't sync if manifests produce zero resources (safety)
+
+    # Sync options — fine-tune sync behavior
+    syncOptions:
+      - CreateNamespace=true          # Create namespace if it doesn't exist
+      - PrunePropagationPolicy=foreground  # Wait for dependents to be deleted
+      - PruneLast=true                # Prune after all other resources are synced
+      - ApplyOutOfSyncOnly=true       # Only apply resources that differ from git
+      - ServerSideApply=true          # Use server-side apply (handles conflicts better)
+
+    # Retry on sync failure
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences that are expected (Kubernetes adds these automatically)
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas    # HPA manages replicas — don't fight over it
+    - group: ''
+      kind: Service
+      jsonPointers:
+        - /spec/clusterIP   # Cluster-assigned, not in git
+
+  # Health checks — how ArgoCD determines if the app is healthy
+  # (defaults are usually fine, but we can be explicit)
+  revisionHistoryLimit: 5

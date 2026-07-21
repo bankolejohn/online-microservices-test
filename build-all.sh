@@ -1,68 +1,120 @@
 #!/bin/bash
+# ============================================================================
+# Build All Services — Local Development (Kind Cluster)
+# ============================================================================
+# Builds all Docker images and loads them into the Kind cluster.
+# This is the LOCAL DEV workflow. For staging/prod, GitHub Actions CI handles
+# building and pushing to GHCR.
+#
+# Usage:
+#   ./build-all.sh                 # Build all services, load into Kind
+#   ./build-all.sh --no-load       # Build only (don't load into Kind)
+#   ./build-all.sh cart-service    # Build a single service
+#
+# Image tagging strategy:
+#   - Local dev: <service>:latest (loaded into Kind)
+#   - CI/CD: ghcr.io/bankolejohn/online-shopping/<service>:sha-<commit>
+# ============================================================================
 
-set -e  # Exit on any error
+set -euo pipefail
 
-echo "Building all microservices Docker images..."
+CLUSTER_NAME="shopping-cluster"
+SERVICES=(
+  frontend-service
+  product-catalog-service
+  cart-service
+  user-authentication-service
+  checkout-service
+  payment-service
+  shipping-service
+)
 
-# Use host Docker daemon instead of minikube's
-echo "Using host Docker daemon for building images..."
+NO_LOAD=false
+TARGET_SERVICE=""
 
-# Build frontend service
-echo "Building frontend-service..."
-cd frontend-service
-docker build -t frontend-service:latest .
-cd ..
+# Parse arguments
+for arg in "$@"; do
+  case "$arg" in
+    --no-load) NO_LOAD=true ;;
+    *) TARGET_SERVICE="$arg" ;;
+  esac
+done
 
-# Build product catalog service
-echo "Building product-catalog-service..."
-cd product-catalog-service
-docker build -t product-catalog-service:latest .
-cd ..
+# If a specific service is requested, only build that one
+if [ -n "$TARGET_SERVICE" ]; then
+  SERVICES=("$TARGET_SERVICE")
+fi
 
-# Build cart service
-echo "Building cart-service..."
-cd cart-service
-docker build -t cart-service:latest .
-cd ..
-
-# Build user authentication service
-echo "Building user-authentication-service..."
-cd user-authentication-service
-docker build -t user-authentication-service:latest .
-cd ..
-
-# Build checkout service
-echo "Building checkout-service..."
-cd checkout-service
-docker build -t checkout-service:latest .
-cd ..
-
-# Build payment service
-echo "Building payment-service..."
-cd payment-service
-docker build -t payment-service:latest .
-cd ..
-
-# Build shipping service
-echo "Building shipping-service..."
-cd shipping-service
-docker build -t shipping-service:latest .
-cd ..
-
-echo "All Docker images built successfully!"
+echo "============================================"
+echo " Building microservices Docker images"
+echo "============================================"
 echo ""
-echo "Loading images into minikube..."
-minikube image load frontend-service:latest
-minikube image load product-catalog-service:latest
-minikube image load cart-service:latest
-minikube image load user-authentication-service:latest
-minikube image load checkout-service:latest
-minikube image load payment-service:latest
-minikube image load shipping-service:latest
+
+# Verify Kind cluster exists
+if ! kind get clusters 2>/dev/null | grep -q "$CLUSTER_NAME"; then
+  echo "ERROR: Kind cluster '$CLUSTER_NAME' not found."
+  echo "Create it with: kind create cluster --config kind-cluster.yaml --name $CLUSTER_NAME"
+  exit 1
+fi
+
+# Build each service
+FAILED=()
+for SERVICE in "${SERVICES[@]}"; do
+  echo "Building ${SERVICE}..."
+
+  if [ ! -d "$SERVICE" ]; then
+    echo "  WARNING: Directory '$SERVICE' not found, skipping."
+    FAILED+=("$SERVICE")
+    continue
+  fi
+
+  if docker build -t "${SERVICE}:latest" "./${SERVICE}" --quiet; then
+    echo "  Built: ${SERVICE}:latest"
+  else
+    echo "  FAILED: ${SERVICE}"
+    FAILED+=("$SERVICE")
+  fi
+done
 
 echo ""
-echo "Verifying images in minikube:"
-minikube image ls | grep -E "(frontend|product|cart|checkout|payment|user|shipping)"
+
+# Load images into Kind
+if [ "$NO_LOAD" = false ]; then
+  echo "============================================"
+  echo " Loading images into Kind cluster"
+  echo "============================================"
+  echo ""
+
+  for SERVICE in "${SERVICES[@]}"; do
+    # Skip services that failed to build
+    if [[ " ${FAILED[*]} " =~ " ${SERVICE} " ]]; then
+      continue
+    fi
+
+    echo "Loading ${SERVICE}:latest into ${CLUSTER_NAME}..."
+    kind load docker-image "${SERVICE}:latest" --name "$CLUSTER_NAME" 2>/dev/null
+  done
+
+  echo ""
+fi
+
+# Summary
+echo "============================================"
+echo " Build Summary"
+echo "============================================"
 echo ""
-echo "To deploy to Kubernetes, run:"
-echo "kubectl apply -k ."
+echo "  Built: $((${#SERVICES[@]} - ${#FAILED[@]}))/${#SERVICES[@]} services"
+
+if [ ${#FAILED[@]} -gt 0 ]; then
+  echo "  Failed: ${FAILED[*]}"
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "To deploy to your local cluster:"
+echo "  kubectl apply -k k8s/overlays/dev"
+echo ""
+echo "To restart deployments (pick up new images):"
+echo "  kubectl rollout restart deployment -n shopping"
+echo ""

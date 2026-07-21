@@ -1,0 +1,141 @@
+# ============================================================================
+# Production Overlay — live environment
+# ============================================================================
+# - 3 replicas (higher availability)
+# - Pulls images from GHCR with pinned SHA tags
+# - Higher resource limits for production load
+# - Stricter pod disruption budgets
+# - Production-grade HPA settings
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: shopping
+
+commonLabels:
+  environment: production
+
+patches:
+  # Scale up to 3 replicas in production
+  - target:
+      kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+
+  # Higher resource limits for production workloads
+  - target:
+      kind: Deployment
+      name: frontend-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "200m"
+
+  - target:
+      kind: Deployment
+      name: checkout-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "200m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+
+  # Production resource quota — more headroom
+  - target:
+      kind: ResourceQuota
+      name: shopping-quota
+    patch: |
+      - op: replace
+        path: /spec/hard/requests.cpu
+        value: "12"
+      - op: replace
+        path: /spec/hard/limits.cpu
+        value: "20"
+      - op: replace
+        path: /spec/hard/requests.memory
+        value: "12Gi"
+      - op: replace
+        path: /spec/hard/limits.memory
+        value: "24Gi"
+      - op: replace
+        path: /spec/hard/pods
+        value: "80"
+
+  # Production HPA — higher max replicas
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: frontend-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: checkout-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: product-catalog-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+
+# Images pulled from GHCR with specific SHA tags
+# Updated by CD pipeline after successful staging deployment
+images:
+  - name: frontend-service
+    newName: ghcr.io/bankolejohn/online-shopping/frontend-service
+    newTag: latest
+  - name: product-catalog-service
+    newName: ghcr.io/bankolejohn/online-shopping/product-catalog-service
+    newTag: latest
+  - name: cart-service
+    newName: ghcr.io/bankolejohn/online-shopping/cart-service
+    newTag: latest
+  - name: user-authentication-service
+    newName: ghcr.io/bankolejohn/online-shopping/user-authentication-service
+    newTag: latest
+  - name: checkout-service
+    newName: ghcr.io/bankolejohn/online-shopping/checkout-service
+    newTag: latest
+  - name: payment-service
+    newName: ghcr.io/bankolejohn/online-shopping/payment-service
+    newTag: latest
+  - name: shipping-service
+    newName: ghcr.io/bankolejohn/online-shopping/shipping-service
+    newTag: latest
