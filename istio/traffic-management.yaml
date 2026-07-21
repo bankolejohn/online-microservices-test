@@ -1,0 +1,108 @@
+# ============================================================================
+# Traffic Management — VirtualService + DestinationRule
+# ============================================================================
+# 
+# WHAT: VirtualService defines routing rules for traffic entering a service.
+#        DestinationRule defines policies AFTER routing (load balancing, etc.)
+#
+# WHY: In a real company, you'd never deploy a new version to 100% of users
+#      at once. You'd do a canary release:
+#      - Deploy v2 alongside v1
+#      - Send 10% of traffic to v2
+#      - Monitor for errors
+#      - Gradually increase to 100%
+#      - If v2 fails, instantly route all traffic back to v1 (rollback)
+#
+# HOW: Istio's VirtualService splits traffic by weight between "subsets"
+#      defined in a DestinationRule.
+# ============================================================================
+
+---
+# DestinationRule: defines subsets (versions) of a service
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: product-catalog-destinations
+  namespace: shopping
+spec:
+  host: product-catalog-service    # Which service this applies to
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DEFAULT
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 100
+    # Circuit breaker: if 5 consecutive 5xx errors, eject the host for 30s
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+
+---
+# VirtualService: routing rules
+# Currently routes 100% to the default (we'll split when we add a v2)
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: product-catalog-routing
+  namespace: shopping
+spec:
+  hosts:
+    - product-catalog-service      # Traffic to this hostname
+  http:
+  - route:
+    - destination:
+        host: product-catalog-service
+      weight: 100                  # 100% of traffic goes here
+    # Retry policy: retry failed requests automatically
+    retries:
+      attempts: 3                  # Retry up to 3 times
+      perTryTimeout: 2s            # Each attempt gets 2 seconds
+      retryOn: 5xx,reset,connect-failure,retriable-4xx
+    # Timeout: total time allowed for the request
+    timeout: 10s
+
+---
+# VirtualService for checkout (add retries and timeout)
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: checkout-routing
+  namespace: shopping
+spec:
+  hosts:
+    - checkout-service
+  http:
+  - route:
+    - destination:
+        host: checkout-service
+      weight: 100
+    retries:
+      attempts: 2
+      perTryTimeout: 5s
+      retryOn: 5xx,reset,connect-failure
+    timeout: 15s                   # Checkout orchestrates multiple calls, needs more time
+
+---
+# DestinationRule for payment with circuit breaker
+# If payment fails repeatedly, stop sending traffic (prevent cascade)
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: payment-circuit-breaker
+  namespace: shopping
+spec:
+  host: payment-service
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 50
+    outlierDetection:
+      consecutive5xxErrors: 3       # After 3 failures...
+      interval: 10s                 # ...checked every 10s...
+      baseEjectionTime: 30s         # ...eject the pod for 30s
+      maxEjectionPercent: 100       # Allow ejecting all pods (fails fast rather than slow)

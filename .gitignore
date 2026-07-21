@@ -74,5 +74,8 @@ q-dev-chat-*.md
 docs/ROADMAP.md
 docs/linkedin-posts.md
 
+# Istio binary distribution (downloaded, not source code)
+istio-1.26.0/
+
 # Kiro
 .kiro/

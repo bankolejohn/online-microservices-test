@@ -1,0 +1,20 @@
+# ============================================================================
+# PeerAuthentication — Enforce mutual TLS for all services
+# ============================================================================
+# This tells Istio: "ALL communication within the shopping namespace
+# MUST use mTLS. Reject any unencrypted traffic."
+#
+# What this means:
+# - Every request between services is encrypted (TLS 1.3)
+# - Both sides verify each other's identity (mutual = two-way auth)
+# - Certificates are automatically rotated by Istio (no manual cert management)
+# - An attacker sniffing network traffic sees only encrypted gibberish
+# ============================================================================
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: shopping
+spec:
+  mtls:
+    mode: STRICT    # REJECT any non-mTLS traffic

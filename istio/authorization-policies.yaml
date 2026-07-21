@@ -1,0 +1,72 @@
+# ============================================================================
+# Istio Authorization Policies
+# ============================================================================
+# 
+# WHAT: Mesh-level access control that operates at Layer 7 (HTTP).
+#       More powerful than NetworkPolicies (which are Layer 3/4).
+#
+# WHY: NetworkPolicies say "can this IP reach this port?"
+#      AuthorizationPolicies say "can THIS service, on THIS HTTP method,
+#      on THIS path, with THESE headers, access THIS endpoint?"
+#
+# EXAMPLE DIFFERENCE:
+#   NetworkPolicy: "checkout pod can reach payment on port 5002"
+#   AuthorizationPolicy: "checkout can POST to /api/payment/process only"
+#   (blocks GET /api/payment/status from checkout — more granular)
+# ============================================================================
+
+---
+# Only allow checkout-service to call payment-service
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-access
+  namespace: shopping
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/shopping/sa/checkout-sa"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/api/payment/process"]
+  - from:
+    - source:
+        principals: ["cluster.local/ns/shopping/sa/frontend-sa"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health"]
+
+---
+# Only allow checkout-service to call shipping-service
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: shipping-access
+  namespace: shopping
+spec:
+  selector:
+    matchLabels:
+      app: shipping-service
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/shopping/sa/checkout-sa"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/api/shipping/create"]
+  - from:
+    - source:
+        principals: ["cluster.local/ns/shopping/sa/frontend-sa"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/health"]
