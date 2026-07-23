@@ -14,8 +14,10 @@ resources:
 
 namespace: shopping
 
-commonLabels:
-  environment: dev
+labels:
+  - pairs:
+      environment: dev
+    includeSelectors: false
 
 patches:
   # Scale down all deployments to 1 replica for local dev

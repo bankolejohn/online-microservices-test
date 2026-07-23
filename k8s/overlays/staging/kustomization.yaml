@@ -15,8 +15,10 @@ resources:
 
 namespace: shopping
 
-commonLabels:
-  environment: staging
+labels:
+  - pairs:
+      environment: staging
+    includeSelectors: false
 
 # Images pulled from GHCR with specific SHA tags
 # Updated automatically by CD pipeline on merge to main

@@ -15,8 +15,10 @@ resources:
 
 namespace: shopping
 
-commonLabels:
-  environment: production
+labels:
+  - pairs:
+      environment: production
+    includeSelectors: false
 
 patches:
   # Scale up to 3 replicas in production

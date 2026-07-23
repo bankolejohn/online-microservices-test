@@ -10,9 +10,12 @@ kind: Kustomization
 
 namespace: shopping
 
-commonLabels:
-  app.kubernetes.io/part-of: online-shopping
-  app.kubernetes.io/managed-by: kustomize
+# Labels applied to all resources (metadata only — NOT injected into selectors)
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: online-shopping
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
 
 resources:
   # Namespace
