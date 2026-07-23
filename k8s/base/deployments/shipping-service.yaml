@@ -16,6 +16,8 @@ spec:
       labels:
         app: shipping-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-credentials
       serviceAccountName: shipping-sa
       automountServiceAccountToken: false
       securityContext:

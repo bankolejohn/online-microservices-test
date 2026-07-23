@@ -27,6 +27,9 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
+      - op: replace
+        path: /spec/template/spec/imagePullSecrets
+        value: []
 
   # Use imagePullPolicy: Never for local Kind images
   - target:

@@ -16,6 +16,8 @@ spec:
       labels:
         app: product-catalog-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-credentials
       serviceAccountName: product-catalog-sa
       automountServiceAccountToken: false
       securityContext:

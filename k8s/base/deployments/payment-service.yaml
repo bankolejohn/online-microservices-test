@@ -16,6 +16,8 @@ spec:
       labels:
         app: payment-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-credentials
       serviceAccountName: payment-sa
       automountServiceAccountToken: false
       securityContext:

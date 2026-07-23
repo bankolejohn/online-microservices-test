@@ -16,6 +16,8 @@ spec:
       labels:
         app: user-authentication-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-credentials
       serviceAccountName: auth-sa
       securityContext:
         runAsNonRoot: true

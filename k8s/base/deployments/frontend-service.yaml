@@ -16,6 +16,8 @@ spec:
       labels:
         app: frontend-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-credentials
       serviceAccountName: frontend-sa
       automountServiceAccountToken: false
       containers:

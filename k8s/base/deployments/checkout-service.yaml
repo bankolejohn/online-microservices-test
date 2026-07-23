@@ -16,6 +16,8 @@ spec:
       labels:
         app: checkout-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-credentials
       serviceAccountName: checkout-sa
       securityContext:
         runAsNonRoot: true

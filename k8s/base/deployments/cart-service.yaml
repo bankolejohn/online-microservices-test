@@ -16,6 +16,8 @@ spec:
       labels:
         app: cart-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-credentials
       serviceAccountName: cart-sa
       automountServiceAccountToken: false
       securityContext:
