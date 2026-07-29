@@ -5,3 +5,14 @@ metadata:
   labels:
     app.kubernetes.io/part-of: online-shopping
     purpose: application
+    # Pod Security Admission — enforces security standards at namespace level
+    # - enforce: privileged (required for Istio sidecar injection — NET_ADMIN/NET_RAW)
+    # - warn: restricted (shows developers what's non-compliant)
+    # - audit: restricted (logs all violations for tracking)
+    # NOTE: If Istio is removed, change enforce to "baseline" or "restricted"
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest

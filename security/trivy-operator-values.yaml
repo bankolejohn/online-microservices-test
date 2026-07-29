@@ -1,0 +1,75 @@
+# ============================================================================
+# Trivy Operator — Helm Values
+# ============================================================================
+# The Trivy Operator runs INSIDE the cluster and continuously scans:
+#   - Container images for vulnerabilities (CVEs)
+#   - Kubernetes manifests for misconfigurations
+#   - Secrets exposed in container environments
+#
+# It stores results as Kubernetes CRDs:
+#   - VulnerabilityReport (per pod)
+#   - ConfigAuditReport (per resource)
+#   - ExposedSecretReport (per pod)
+#
+# Install:
+#   helm repo add aqua https://aquasecurity.github.io/helm-charts/
+#   helm repo update
+#   helm install trivy-operator aqua/trivy-operator \
+#     --namespace trivy-system --create-namespace \
+#     -f security/trivy-operator-values.yaml
+#
+# Query results:
+#   kubectl get vulnerabilityreports -n shopping
+#   kubectl get vulnerabilityreports -n shopping -o wide
+#   kubectl get configauditreports -n shopping
+#
+# CKS Exam: You need to understand image scanning concepts and outputs,
+# but you won't install Trivy Operator on the exam (just interpret results).
+# ============================================================================
+
+# Operator configuration
+trivy:
+  # Severity levels to report (don't report LOW — too noisy)
+  severity: MEDIUM,HIGH,CRITICAL
+
+  # Ignore unfixed vulnerabilities (can't action them anyway)
+  ignoreUnfixed: false
+
+  # Timeout for scanning large images
+  timeout: 10m0s
+
+  # Resource limits for the scanner pods
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Which namespaces to scan (limit to our app namespaces)
+targetNamespaces: "shopping"
+
+# Scan schedule (re-scan existing images every 24 hours for new CVEs)
+scanJobsConcurrentLimit: 3
+scanJobsRetryDelay: 30s
+
+# Compliance reports (optional — generates CIS benchmark reports)
+compliance:
+  enabled: false  # Enable when ready for CIS scanning
+
+# Metrics (integrate with our Prometheus stack)
+serviceMonitor:
+  enabled: true   # Exposes vulnerability metrics to Prometheus
+  labels:
+    release: prometheus  # Must match Prometheus serviceMonitorSelector
+
+# Operator resources (the controller itself)
+operator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi

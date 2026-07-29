@@ -1,0 +1,52 @@
+# ============================================================================
+# Policy: Disallow Privilege Escalation
+# ============================================================================
+# WHY: If allowPrivilegeEscalation is true (the default!), a container
+#      process can gain more privileges than its parent. This is how
+#      container breakout attacks work — the process escalates to root
+#      on the host.
+#
+# WHAT IT DOES: Requires all containers to set
+#      securityContext.allowPrivilegeEscalation = false
+#
+# NOTE: This overlaps with PSA 'restricted' level. The difference:
+#      - PSA gives a generic warning
+#      - Kyverno gives a specific, actionable error message
+#      - Kyverno can be scoped per-namespace, per-resource, with exclusions
+#
+# REAL-WORLD CONTEXT: Combined with runAsNonRoot + drop ALL capabilities,
+#      this makes container breakout attacks significantly harder.
+# ============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privilege-escalation
+  annotations:
+    policies.kyverno.io/title: Disallow Privilege Escalation
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Containers must not allow privilege escalation. Set
+      securityContext.allowPrivilegeEscalation to false.
+spec:
+  validationFailureAction: Audit  # Audit first (Istio sidecars may need it)
+  background: true
+  rules:
+    - name: deny-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - shopping
+      validate:
+        message: >-
+          Privilege escalation is not allowed. Set
+          spec.containers[*].securityContext.allowPrivilegeEscalation to false.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false

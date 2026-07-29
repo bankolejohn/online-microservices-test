@@ -2,6 +2,9 @@
 node_modules/
 vendor/
 
+# etcd backups (contain secrets — never commit)
+backups/
+
 # Build outputs
 build/
 
