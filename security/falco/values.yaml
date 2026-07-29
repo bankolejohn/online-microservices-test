@@ -1,0 +1,222 @@
+# ============================================================================
+# Falco — Helm Values for Runtime Security Monitoring
+# ============================================================================
+# Falco watches syscalls in real-time and alerts on suspicious container
+# behavior: shell access, file reads, network connections, privilege escalation.
+#
+# Install:
+#   helm repo add falcosecurity https://falcosecurity.github.io/charts
+#   helm repo update
+#   helm install falco falcosecurity/falco \
+#     --namespace falco --create-namespace \
+#     -f security/falco/values.yaml
+#
+# Verify:
+#   kubectl get pods -n falco
+#   kubectl logs -n falco -l app.kubernetes.io/name=falco --tail=50
+#
+# Test (trigger a shell alert):
+#   kubectl exec -it deployment/cart-service -n shopping -- /bin/sh
+#   → Falco should alert: "Notice: A shell was spawned in a container"
+# ============================================================================
+
+# Driver configuration — how Falco hooks into the kernel
+driver:
+  # modern_ebpf works on most modern kernels (5.8+) without kernel headers
+  # Options: module (kernel module), ebpf (classic), modern_ebpf (recommended)
+  kind: modern_ebpf
+
+# Falco runs as a DaemonSet (one pod per node — must be on every node to see all syscalls)
+controller:
+  kind: daemonset
+
+# Resource limits (Falco is lightweight — ~50MB RSS)
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Output channels — where alerts go
+falco:
+  # JSON output for machine parsing
+  json_output: true
+  json_include_output_property: true
+  json_include_tags_property: true
+
+  # Priority threshold (don't alert on DEBUG/INFO)
+  priority: notice
+
+  # Log to stdout (picked up by kubectl logs / Loki)
+  stdout_output:
+    enabled: true
+
+  # Syslog output (traditional)
+  syslog_output:
+    enabled: false
+
+  # gRPC output (for Falco Sidekick integration — configured automatically)
+  # Note: grpc and grpc_output are now handled internally by the chart
+
+# Falco Sidekick — forwards alerts to external systems
+falcosidekick:
+  enabled: true
+  config:
+    # Send alerts to stdout (visible in Sidekick logs)
+    stdout:
+      enabled: true
+
+    # Prometheus metrics (integrates with our monitoring stack)
+    prometheus:
+      enabled: true
+
+    # Webhook (would send to PagerDuty/Slack in production)
+    # webhook:
+    #   address: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+
+# ServiceMonitor for Prometheus integration
+serviceMonitor:
+  enabled: true
+  labels:
+    release: prometheus
+
+# Mount custom rules from ConfigMap
+customRules:
+  shopping-rules.yaml: |
+    # ============================================================================
+    # Custom Falco Rules — Online Shopping Application
+    # ============================================================================
+    # These rules are tailored to our specific application behavior.
+    # Default Falco rules catch generic threats. Custom rules catch
+    # threats SPECIFIC to our services.
+    # ============================================================================
+
+    # -----------------------------------------------------------------------
+    # Rule: Detect shell access in any shopping namespace container
+    # -----------------------------------------------------------------------
+    # WHY: No service should ever need an interactive shell in production.
+    #      If someone gets a shell, it's either a dev debugging (should use
+    #      kubectl logs instead) or an attacker.
+    # -----------------------------------------------------------------------
+    - rule: Shell in Shopping Container
+      desc: Detect shell spawned in shopping namespace containers
+      condition: >
+        spawned_process
+        and container
+        and proc.name in (bash, sh, zsh, ash, dash)
+        and k8s.ns.name = "shopping"
+      output: >
+        ALERT: Shell spawned in shopping container
+        (user=%user.name command=%proc.cmdline container=%container.name
+        pod=%k8s.pod.name namespace=%k8s.ns.name image=%container.image.repository)
+      priority: WARNING
+      tags: [shell, shopping, mitre_execution]
+
+    # -----------------------------------------------------------------------
+    # Rule: Detect reading of sensitive files
+    # -----------------------------------------------------------------------
+    # WHY: Our services should never read /etc/shadow or /etc/passwd.
+    #      If they do, something is very wrong (attacker enumerating users).
+    # -----------------------------------------------------------------------
+    - rule: Sensitive File Read in Shopping
+      desc: Detect reading of sensitive OS files in shopping containers
+      condition: >
+        open_read
+        and container
+        and k8s.ns.name = "shopping"
+        and (fd.name startswith /etc/shadow
+             or fd.name = /etc/passwd
+             or fd.name startswith /root/.ssh
+             or fd.name startswith /proc/1/environ)
+      output: >
+        ALERT: Sensitive file read in shopping container
+        (file=%fd.name user=%user.name command=%proc.cmdline
+        container=%container.name pod=%k8s.pod.name)
+      priority: WARNING
+      tags: [filesystem, shopping, mitre_credential_access]
+
+    # -----------------------------------------------------------------------
+    # Rule: Detect unexpected outbound network connections
+    # -----------------------------------------------------------------------
+    # WHY: Our backend services should only talk to each other (internal DNS).
+    #      If cart-service suddenly connects to an external IP, that's
+    #      either data exfiltration or a reverse shell.
+    # -----------------------------------------------------------------------
+    - rule: Unexpected Outbound Connection from Shopping
+      desc: Detect outbound connections to non-cluster IPs from shopping pods
+      condition: >
+        outbound
+        and container
+        and k8s.ns.name = "shopping"
+        and not fd.snet in (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8)
+      output: >
+        ALERT: Unexpected outbound connection from shopping container
+        (destination=%fd.sip:%fd.sport command=%proc.cmdline
+        container=%container.name pod=%k8s.pod.name)
+      priority: NOTICE
+      tags: [network, shopping, mitre_exfiltration]
+
+    # -----------------------------------------------------------------------
+    # Rule: Detect package manager usage in running containers
+    # -----------------------------------------------------------------------
+    # WHY: Containers should be immutable. If someone runs apt/apk/pip inside
+    #      a running container, they're either installing tools for an attack
+    #      or violating the immutable infrastructure principle.
+    # -----------------------------------------------------------------------
+    - rule: Package Manager in Shopping Container
+      desc: Detect package manager execution in shopping containers
+      condition: >
+        spawned_process
+        and container
+        and k8s.ns.name = "shopping"
+        and proc.name in (apt, apt-get, apk, yum, dnf, pip, pip3, npm, yarn)
+      output: >
+        ALERT: Package manager executed in running container
+        (command=%proc.cmdline user=%user.name
+        container=%container.name pod=%k8s.pod.name)
+      priority: ERROR
+      tags: [package, shopping, mitre_persistence]
+
+    # -----------------------------------------------------------------------
+    # Rule: Detect kubectl/curl to API server from pods
+    # -----------------------------------------------------------------------
+    # WHY: Pods shouldn't be talking to the Kubernetes API server directly
+    #      (except those with explicit ServiceAccount access like ArgoCD).
+    #      If cart-service is curling the API server, that's lateral movement.
+    # -----------------------------------------------------------------------
+    - rule: K8s API Access from Shopping Pod
+      desc: Detect attempts to access Kubernetes API from shopping pods
+      condition: >
+        outbound
+        and container
+        and k8s.ns.name = "shopping"
+        and fd.sport = 6443
+      output: >
+        ALERT: Kubernetes API access attempt from shopping pod
+        (command=%proc.cmdline user=%user.name
+        container=%container.name pod=%k8s.pod.name)
+      priority: ERROR
+      tags: [k8s_api, shopping, mitre_lateral_movement]
+
+    # -----------------------------------------------------------------------
+    # Rule: Detect crypto mining indicators
+    # -----------------------------------------------------------------------
+    # WHY: Cryptojacking is the #1 attack on Kubernetes clusters.
+    #      Attackers compromise a container and run xmrig/stratum miners.
+    #      Detect by process name or connection to known mining pools.
+    # -----------------------------------------------------------------------
+    - rule: Crypto Mining in Shopping Container
+      desc: Detect cryptocurrency mining processes in shopping containers
+      condition: >
+        spawned_process
+        and container
+        and k8s.ns.name = "shopping"
+        and proc.name in (xmrig, minerd, minergate, ccminer, cpuminer)
+      output: >
+        CRITICAL: Crypto mining detected in shopping container!
+        (process=%proc.name command=%proc.cmdline
+        container=%container.name pod=%k8s.pod.name image=%container.image.repository)
+      priority: CRITICAL
+      tags: [crypto_mining, shopping, mitre_impact]

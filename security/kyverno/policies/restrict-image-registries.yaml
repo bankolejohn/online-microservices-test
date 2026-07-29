@@ -1,0 +1,59 @@
+# ============================================================================
+# Policy: Restrict Image Registries
+# ============================================================================
+# WHY: Supply chain attacks. In 2024, malicious images on Docker Hub
+#      infected thousands of clusters. If a developer pulls 'some-random/app'
+#      instead of your vetted image, you've just introduced unknown code.
+#
+# WHAT IT DOES: Only allows images from approved registries:
+#      - ghcr.io/bankolejohn/ (our GHCR — we built these)
+#      - docker.io/istio/ (Istio components — trusted vendor)
+#      - docker.io/library/ (official Docker images — nginx, alpine, etc.)
+#      - registry.k8s.io/ (Kubernetes system images)
+#
+# REAL-WORLD CONTEXT: Companies maintain an "approved registry" list.
+#      Some go further: only images signed by their build system are allowed
+#      (cosign/Sigstore — covered later).
+# ============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  annotations:
+    policies.kyverno.io/title: Restrict Image Registries
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Only allow container images from approved registries to prevent
+      supply chain attacks from untrusted sources.
+spec:
+  validationFailureAction: Audit  # Start with Audit, move to Enforce once validated
+  background: true
+  rules:
+    - name: validate-image-registry
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - shopping
+      validate:
+        message: >-
+          Images must come from approved registries:
+          ghcr.io/bankolejohn/, docker.io/istio/, docker.io/library/,
+          or registry.k8s.io/. Image '{{request.object.spec.containers[].image}}'
+          is from an unapproved source.
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                all:
+                  - key: "{{element.image}}"
+                    operator: AnyNotIn
+                    value:
+                      - "ghcr.io/bankolejohn/*"
+                      - "docker.io/istio/*"
+                      - "docker.io/library/*"
+                      - "registry.k8s.io/*"

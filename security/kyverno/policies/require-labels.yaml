@@ -1,0 +1,53 @@
+# ============================================================================
+# Policy: Require Labels
+# ============================================================================
+# WHY: Without labels, you can't answer basic operational questions:
+#      - "Who owns this deployment?" → no team label
+#      - "What application is this?" → no app label
+#      - "What version is running?" → no version label
+#
+# WHAT IT DOES: Rejects Deployments that don't have required labels.
+#
+# REAL-WORLD CONTEXT: At most companies, labels drive:
+#      - Monitoring dashboards (group by app/team)
+#      - Cost allocation (tag resources to teams for billing)
+#      - Incident response (who to page when this service breaks)
+#      - NetworkPolicies and service mesh routing (selector-based)
+# ============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  annotations:
+    policies.kyverno.io/title: Require Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Deployment
+    policies.kyverno.io/description: >-
+      All Deployments must have 'app' and 'app.kubernetes.io/part-of' labels
+      for operational visibility and monitoring.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-app-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+              namespaces:
+                - shopping
+      validate:
+        message: >-
+          Deployments must have 'app' label in metadata.labels and
+          spec.template.metadata.labels for service discovery and monitoring.
+        pattern:
+          metadata:
+            labels:
+              app: "?*"
+          spec:
+            template:
+              metadata:
+                labels:
+                  app: "?*"
