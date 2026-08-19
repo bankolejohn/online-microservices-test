@@ -110,6 +110,11 @@ services:
           configMapKeyRef:
             name: service-config
             key: CART_PORT
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: postgres-credentials
+            key: DATABASE_URL
 
   userAuth:
     enabled: true

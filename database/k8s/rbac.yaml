@@ -1,0 +1,11 @@
+# ============================================================================
+# PostgreSQL RBAC — ServiceAccount
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-sa
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: database

@@ -1,0 +1,49 @@
+# ============================================================================
+# PostgreSQL NetworkPolicy — restrict who can connect
+# ============================================================================
+# ONLY application services that need the database can reach it.
+# This prevents lateral movement — if an attacker compromises frontend-service,
+# they can't directly access the database (frontend doesn't need DB access).
+#
+# Allowed sources:
+#   - cart-service (reads/writes cart data)
+#   - checkout-service (creates orders)
+#   - payment-service (records payments)
+#   - user-authentication-service (reads/writes user accounts)
+#   - product-catalog-service (reads products)
+#
+# Denied:
+#   - frontend-service (communicates via API, not direct DB)
+#   - shipping-service (doesn't need persistent data)
+#   - Any other namespace
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-from-services
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: cart-service
+        - podSelector:
+            matchLabels:
+              app: checkout-service
+        - podSelector:
+            matchLabels:
+              app: payment-service
+        - podSelector:
+            matchLabels:
+              app: user-authentication-service
+        - podSelector:
+            matchLabels:
+              app: product-catalog-service
+      ports:
+        - protocol: TCP
+          port: 5432
