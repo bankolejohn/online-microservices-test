@@ -1,0 +1,87 @@
+{{/*
+============================================================================
+Deployment Template — generates one Deployment per enabled service
+============================================================================
+This single file produces 7 Deployments by iterating over .Values.services.
+The DRY principle: one template, many resources.
+
+Customization per service:
+  - Port, image, replicas, health probes — from values.yaml
+  - Resources — per-service or falls back to global defaults
+  - Security context — per-service or falls back to global defaults
+  - Environment variables — defined per service
+============================================================================
+*/}}
+{{- range $key, $svc := .Values.services }}
+{{- if $svc.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $svc.name }}
+  labels:
+    {{- include "online-shopping.labels" $ | nindent 4 }}
+    {{- include "online-shopping.serviceLabels" (dict "name" $svc.name "component" ($svc.component | default "backend")) | nindent 4 }}
+spec:
+  replicas: {{ $svc.replicas | default $.Values.global.replicas }}
+  selector:
+    matchLabels:
+      {{- include "online-shopping.selectorLabels" (dict "name" $svc.name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "online-shopping.selectorLabels" (dict "name" $svc.name) | nindent 8 }}
+    spec:
+      {{- if $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml $.Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ $svc.serviceAccountName | default "default" }}
+      {{- if hasKey $svc "automountServiceAccountToken" }}
+      automountServiceAccountToken: {{ $svc.automountServiceAccountToken }}
+      {{- end }}
+      {{- if or $svc.securityContext $.Values.global.securityContext }}
+      securityContext:
+        {{- if $svc.securityContext }}
+        {{- toYaml $svc.securityContext | nindent 8 }}
+        {{- else }}
+        {{- toYaml $.Values.global.securityContext | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ $svc.name }}
+          image: {{ include "online-shopping.image" (dict "global" $.Values.global "image" $svc.image "tag" ($svc.imageTag | default "")) }}
+          imagePullPolicy: {{ $svc.imagePullPolicy | default $.Values.global.imagePullPolicy }}
+          {{- if $.Values.global.containerSecurityContext }}
+          securityContext:
+            {{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ $svc.port }}
+              protocol: TCP
+          {{- if $svc.env }}
+          env:
+            {{- toYaml $svc.env | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- if $svc.resources }}
+            {{- toYaml $svc.resources | nindent 12 }}
+            {{- else }}
+            {{- toYaml $.Values.global.resources | nindent 12 }}
+            {{- end }}
+          {{- if and $svc.health $svc.health.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ $svc.health.path }}
+              port: {{ $svc.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: {{ $svc.health.path }}
+              port: {{ $svc.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          {{- end }}
+{{- end }}
+{{- end }}

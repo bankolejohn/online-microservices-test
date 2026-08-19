@@ -1,0 +1,13 @@
+# ============================================================================
+# Staging Environment Values — pre-production
+# ============================================================================
+# Usage: helm install shopping ./charts/online-shopping -f charts/online-shopping/values-staging.yaml
+# ============================================================================
+
+global:
+  imageRegistry: "ghcr.io/bankolejohn/online-shopping"
+  imageTag: "latest"  # CD pipeline updates this to sha-<commit>
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: ghcr-credentials
+  replicas: 2

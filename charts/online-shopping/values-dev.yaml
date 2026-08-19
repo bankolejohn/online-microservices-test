@@ -1,0 +1,12 @@
+# ============================================================================
+# Dev Environment Values — local Kind cluster
+# ============================================================================
+# Usage: helm install shopping ./charts/online-shopping -f charts/online-shopping/values-dev.yaml
+# ============================================================================
+
+global:
+  imageRegistry: ""  # No registry prefix — use local images
+  imageTag: "latest"
+  imagePullPolicy: Never  # Images loaded into Kind via `kind load`
+  imagePullSecrets: []    # No registry auth needed locally
+  replicas: 1             # Save resources locally
