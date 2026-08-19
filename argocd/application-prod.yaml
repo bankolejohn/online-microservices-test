@@ -33,11 +33,14 @@ metadata:
 spec:
   project: online-shopping
 
-  # Source — production overlay
+  # Source — Helm chart with production values
   source:
     repoURL: https://github.com/bankolejohn/online-microservices-test.git
     targetRevision: main
-    path: k8s/overlays/prod
+    path: charts/online-shopping
+    helm:
+      valueFiles:
+        - values-prod.yaml
 
   # Destination — same cluster for this learning project
   # In production, this would point to a separate production cluster

@@ -1,0 +1,262 @@
+# ============================================================================
+# values.yaml — Default Configuration for Online Shopping Chart
+# ============================================================================
+# This file contains the DEFAULT values. Users override them with:
+#   helm install shopping ./charts/online-shopping -f values-prod.yaml
+#   helm install shopping ./charts/online-shopping --set global.replicas=3
+#
+# Design principle: sensible defaults for development, override for production.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Global settings (apply to all services unless overridden)
+# ---------------------------------------------------------------------------
+global:
+  namespace: shopping
+
+  # Image registry — change per environment
+  # Dev: "" (local images)
+  # Staging/Prod: "ghcr.io/bankolejohn/online-shopping"
+  imageRegistry: "ghcr.io/bankolejohn/online-shopping"
+  imageTag: "latest"
+  imagePullPolicy: IfNotPresent
+
+  # Image pull secrets for private registries
+  imagePullSecrets:
+    - name: ghcr-credentials
+
+  # Default replicas (overridden per service if needed)
+  replicas: 2
+
+  # Default resources (sensible for dev, override for prod)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Pod security context (applies to all services)
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+  # Container security context
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
+# ---------------------------------------------------------------------------
+# Service configurations (per-service overrides)
+# ---------------------------------------------------------------------------
+services:
+  frontend:
+    enabled: true
+    name: frontend-service
+    image: frontend-service
+    port: 80
+    replicas: 2
+    serviceAccountName: frontend-sa
+    automountServiceAccountToken: false
+    securityContext:
+      runAsNonRoot: false  # nginx needs root (or use unprivileged nginx)
+      runAsUser: null
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    health:
+      enabled: false  # nginx doesn't have /health endpoint
+    env: []
+
+  productCatalog:
+    enabled: true
+    name: product-catalog-service
+    image: product-catalog-service
+    port: 3001
+    replicas: 2
+    serviceAccountName: product-catalog-sa
+    automountServiceAccountToken: false
+    health:
+      enabled: true
+      path: /health
+    env:
+      - name: PORT
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: PRODUCT_CATALOG_PORT
+
+  cart:
+    enabled: true
+    name: cart-service
+    image: cart-service
+    port: 3002
+    replicas: 2
+    serviceAccountName: cart-sa
+    automountServiceAccountToken: false
+    health:
+      enabled: true
+      path: /health
+    env:
+      - name: PORT
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: CART_PORT
+
+  userAuth:
+    enabled: true
+    name: user-authentication-service
+    image: user-authentication-service
+    port: 3003
+    replicas: 2
+    serviceAccountName: auth-sa
+    health:
+      enabled: true
+      path: /health
+    env:
+      - name: PORT
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: AUTH_PORT
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: auth-secrets
+            key: jwt-secret
+
+  checkout:
+    enabled: true
+    name: checkout-service
+    image: checkout-service
+    port: 5001
+    replicas: 2
+    serviceAccountName: checkout-sa
+    health:
+      enabled: true
+      path: /health
+    env:
+      - name: PORT
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: CHECKOUT_PORT
+      - name: CART_SERVICE_URL
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: CART_SERVICE_URL
+      - name: PAYMENT_SERVICE_URL
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: PAYMENT_SERVICE_URL
+      - name: SHIPPING_SERVICE_URL
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: SHIPPING_SERVICE_URL
+
+  payment:
+    enabled: true
+    name: payment-service
+    image: payment-service
+    port: 5002
+    replicas: 2
+    serviceAccountName: payment-sa
+    automountServiceAccountToken: false
+    health:
+      enabled: true
+      path: /health
+    env:
+      - name: PORT
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: PAYMENT_PORT
+
+  shipping:
+    enabled: true
+    name: shipping-service
+    image: shipping-service
+    port: 8080
+    replicas: 2
+    serviceAccountName: shipping-sa
+    automountServiceAccountToken: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    health:
+      enabled: true
+      path: /health
+    env:
+      - name: PORT
+        valueFrom:
+          configMapKeyRef:
+            name: service-config
+            key: SHIPPING_PORT
+
+# ---------------------------------------------------------------------------
+# Ingress configuration
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              serviceName: frontend-service
+              servicePort: 80
+
+# ---------------------------------------------------------------------------
+# ConfigMap (service discovery URLs)
+# ---------------------------------------------------------------------------
+config:
+  serviceConfig:
+    PRODUCT_CATALOG_PORT: "3001"
+    CART_PORT: "3002"
+    AUTH_PORT: "3003"
+    CHECKOUT_PORT: "5001"
+    PAYMENT_PORT: "5002"
+    SHIPPING_PORT: "8080"
+    CART_SERVICE_URL: "http://cart-service:3002"
+    PAYMENT_SERVICE_URL: "http://payment-service:5002"
+    SHIPPING_SERVICE_URL: "http://shipping-service:8080"
+
+# ---------------------------------------------------------------------------
+# RBAC (ServiceAccounts)
+# ---------------------------------------------------------------------------
+rbac:
+  create: true
+  serviceAccounts:
+    - name: frontend-sa
+      component: frontend
+    - name: product-catalog-sa
+      component: backend
+    - name: cart-sa
+      component: backend
+    - name: auth-sa
+      component: backend
+    - name: checkout-sa
+      component: backend
+    - name: payment-sa
+      component: backend
+    - name: shipping-sa
+      component: backend

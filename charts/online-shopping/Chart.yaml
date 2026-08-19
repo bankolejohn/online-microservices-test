@@ -1,0 +1,40 @@
+# ============================================================================
+# Chart.yaml — Helm Chart Metadata
+# ============================================================================
+# This is the identity card of the chart. It tells Helm:
+#   - What the chart is called
+#   - What version it is (chart version vs app version — they're separate)
+#   - What it depends on (sub-charts, databases, etc.)
+#
+# Version strategy:
+#   - version: the CHART version (packaging/template changes)
+#   - appVersion: the APPLICATION version (your code changes)
+#   - These can diverge: chart v2.0.0 might still deploy app v1.5.3
+# ============================================================================
+apiVersion: v2
+name: online-shopping
+description: Online Shopping Platform — 7 microservices deployed to Kubernetes
+type: application
+
+# Chart version — bump this when you change the chart templates/values
+version: 1.0.0
+
+# App version — bump this when you release new application code
+appVersion: "1.0.0"
+
+# Who maintains this chart
+maintainers:
+  - name: Bankole John
+    url: https://github.com/bankolejohn
+
+# Where the source code lives
+home: https://github.com/bankolejohn/online-microservices-test
+sources:
+  - https://github.com/bankolejohn/online-microservices-test
+
+# Keywords (for chart repository search)
+keywords:
+  - microservices
+  - e-commerce
+  - kubernetes
+  - shopping

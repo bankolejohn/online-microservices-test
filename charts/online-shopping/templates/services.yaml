@@ -1,0 +1,28 @@
+{{/*
+============================================================================
+Service Template — generates one ClusterIP Service per enabled service
+============================================================================
+Each Service provides a stable DNS name and load-balances across pods.
+The selector must match the Deployment's pod labels exactly.
+============================================================================
+*/}}
+{{- range $key, $svc := .Values.services }}
+{{- if $svc.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc.name }}
+  labels:
+    {{- include "online-shopping.labels" $ | nindent 4 }}
+    {{- include "online-shopping.serviceLabels" (dict "name" $svc.name "component" ($svc.component | default "backend")) | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "online-shopping.selectorLabels" (dict "name" $svc.name) | nindent 4 }}
+  ports:
+    - port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+      protocol: TCP
+{{- end }}
+{{- end }}

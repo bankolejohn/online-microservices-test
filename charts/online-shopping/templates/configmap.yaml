@@ -1,0 +1,18 @@
+{{/*
+============================================================================
+ConfigMap — service discovery and shared configuration
+============================================================================
+Contains inter-service URLs and port numbers. Services read these via
+environment variables (valueFrom.configMapKeyRef).
+============================================================================
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-config
+  labels:
+    {{- include "online-shopping.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.config.serviceConfig }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

@@ -1,0 +1,36 @@
+# ============================================================================
+# Production Environment Values
+# ============================================================================
+# Usage: helm install shopping ./charts/online-shopping -f charts/online-shopping/values-prod.yaml
+# ============================================================================
+
+global:
+  imageRegistry: "ghcr.io/bankolejohn/online-shopping"
+  imageTag: "latest"  # CD pipeline updates this to sha-<commit>
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: ghcr-credentials
+  replicas: 3  # Higher availability
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Override specific services for production
+services:
+  checkout:
+    replicas: 4  # Critical path — more replicas
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  frontend:
+    replicas: 4  # User-facing — handle traffic spikes

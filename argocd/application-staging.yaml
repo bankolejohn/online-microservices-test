@@ -29,11 +29,17 @@ metadata:
 spec:
   project: online-shopping
 
-  # Source — where to find the Kubernetes manifests
+  # Source — where to find the Helm chart
+  # ArgoCD renders the chart (like `helm template`) and applies the diff.
+  # When CD pipeline updates values-staging.yaml (image tag), ArgoCD detects
+  # the change and re-renders with the new tag — automatic deployment.
   source:
     repoURL: https://github.com/bankolejohn/online-microservices-test.git
     targetRevision: main
-    path: k8s/overlays/staging
+    path: charts/online-shopping
+    helm:
+      valueFiles:
+        - values-staging.yaml
 
   # Destination — where to deploy
   destination:
