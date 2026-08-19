@@ -1,0 +1,16 @@
+# ============================================================================
+# PostgreSQL Pod Disruption Budget
+# ============================================================================
+# With a single replica (dev), this ensures the database is NEVER voluntarily
+# evicted during node drain. Kubernetes will wait until you explicitly handle it.
+# In production with 3 replicas, you'd set minAvailable: 2.
+# ============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgres

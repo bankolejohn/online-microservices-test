@@ -1,0 +1,27 @@
+# ============================================================================
+# Database Kustomization — deploy PostgreSQL resources
+# ============================================================================
+# Usage: kubectl apply -k database/k8s/
+#
+# This deploys:
+#   - Secret (credentials)
+#   - ConfigMap (init SQL schema)
+#   - ServiceAccount
+#   - StatefulSet (PostgreSQL with PVC)
+#   - Services (headless + regular)
+#   - NetworkPolicy (restrict access to backend services only)
+#   - PodDisruptionBudget
+# ============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: shopping
+
+resources:
+  - secret.yaml
+  - init-sql-configmap.yaml
+  - rbac.yaml
+  - statefulset.yaml
+  - service.yaml
+  - networkpolicy.yaml
+  - pdb.yaml

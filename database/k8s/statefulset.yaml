@@ -1,0 +1,128 @@
+# ============================================================================
+# PostgreSQL StatefulSet
+# ============================================================================
+# WHY StatefulSet instead of Deployment?
+#   1. Stable pod identity: always postgres-0 (not postgres-7c76-random)
+#   2. Stable storage: each pod gets its own PVC that survives restarts
+#   3. Ordered startup: replica 0 starts first (primary), then 1, 2 (replicas)
+#   4. Ordered shutdown: replicas stop first, primary stops last
+#
+# Storage:
+#   - volumeClaimTemplates creates a PVC for EACH pod automatically
+#   - If the pod dies and restarts, it reconnects to the SAME PVC (data intact)
+#   - If the StatefulSet is deleted, PVCs are NOT deleted (data preserved)
+#
+# In production:
+#   - Use PostgreSQL Operator (CloudNativePG, Zalando, CrunchyData) for HA
+#   - 3 replicas: 1 primary + 2 read replicas with streaming replication
+#   - Connection pooling (PgBouncer)
+#   - Automated backups to S3
+#   - For this learning project, 1 replica demonstrates the concepts
+# ============================================================================
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: online-shopping
+spec:
+  serviceName: postgres  # Must match the headless Service name
+  replicas: 1            # 1 for dev (3 for prod with replication)
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      serviceAccountName: postgres-sa
+      securityContext:
+        runAsUser: 999     # postgres user in the container
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            # Store data in the persistent volume
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # Liveness: is PostgreSQL process alive?
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+                - -d
+                - $(POSTGRES_DB)
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          # Readiness: is PostgreSQL accepting connections?
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+                - -d
+                - $(POSTGRES_DB)
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          volumeMounts:
+            # Persistent data volume
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            # Init SQL scripts (run on first start only)
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        # Init SQL from ConfigMap
+        - name: init-sql
+          configMap:
+            name: postgres-init-sql
+
+  # VolumeClaimTemplate — creates a PVC for each pod in the StatefulSet
+  # This is what makes data PERSISTENT across pod restarts
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+        labels:
+          app: postgres
+      spec:
+        accessModes: ["ReadWriteOnce"]  # Only one pod can write at a time
+        storageClassName: standard       # Kind's default StorageClass
+        resources:
+          requests:
+            storage: 5Gi

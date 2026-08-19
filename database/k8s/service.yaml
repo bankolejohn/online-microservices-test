@@ -1,0 +1,56 @@
+# ============================================================================
+# PostgreSQL Services
+# ============================================================================
+# Two services are needed for StatefulSets:
+#
+# 1. Headless Service (clusterIP: None)
+#    - Required by StatefulSet for stable network identity
+#    - Each pod gets a DNS name: postgres-0.postgres.shopping.svc.cluster.local
+#    - Used for replication between replicas (direct pod-to-pod)
+#
+# 2. Regular Service (ClusterIP)
+#    - Used by applications to CONNECT to the database
+#    - Load-balances across ready pods
+#    - Applications connect to: postgres.shopping.svc.cluster.local:5432
+#    - Or simply: postgres:5432 (within same namespace)
+# ============================================================================
+
+---
+# Headless Service (required for StatefulSet stable DNS)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: database
+spec:
+  clusterIP: None    # This makes it "headless" — no load balancing, direct pod DNS
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+
+---
+# Regular Service (for application connections)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-svc
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: online-shopping
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
