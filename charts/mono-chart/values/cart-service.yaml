@@ -1,0 +1,33 @@
+# Cart Service — values for the mono-chart
+serviceName: cart-service
+environment: dev
+
+image:
+  repository: ""          # dev = local image
+  name: cart-service
+  tag: latest
+  pullPolicy: Never       # local image loaded into Kind
+
+replicas: 2
+containerPort: 3002
+servicePort: 3002
+
+serviceAccountName: cart-sa
+automountServiceAccountToken: false
+
+health:
+  enabled: true
+  path: /health
+
+env:
+  - name: PORT
+    value: "3002"
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: postgres-credentials
+        key: DATABASE_URL
+
+pdb:
+  enabled: true
+  minAvailable: 1

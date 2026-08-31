@@ -1,0 +1,69 @@
+# ============================================================================
+# ArgoCD ApplicationSet — Mono Chart at Scale
+# ============================================================================
+# This is the answer to "how do I manage 400 microservices with ArgoCD?"
+#
+# An ApplicationSet is a GENERATOR — it loops over a list and creates one
+# ArgoCD Application per entry. Here, each service in the list becomes its
+# own ArgoCD Application, all pointing to the SAME mono-chart but with a
+# different values file.
+#
+# To add a new service at scale:
+#   1. Add a values file: charts/mono-chart/values/new-service.yaml
+#   2. Add one line to the `elements` list below
+#   3. ArgoCD auto-creates the Application, syncs it, done.
+#
+# This combines:
+#   - Mono chart (one chart, no duplication)
+#   - ApplicationSet (one Application per service, independent sync/rollback)
+#   - GitOps (git is the source of truth)
+#
+# At 400 services, you'd use a Git generator (auto-discover values files)
+# instead of the hardcoded list generator shown here.
+# ============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: online-shopping-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    # List generator — one entry per service.
+    # (For true scale, swap this for a Git generator that auto-discovers
+    #  every file in charts/mono-chart/values/)
+    - list:
+        elements:
+          - service: frontend-service
+          - service: product-catalog-service
+          - service: cart-service
+          - service: user-authentication-service
+          - service: checkout-service
+          - service: payment-service
+          - service: shipping-service
+
+  template:
+    metadata:
+      # Each generated Application is named after its service
+      name: "shopping-{{.service}}"
+      labels:
+        app.kubernetes.io/part-of: online-shopping
+    spec:
+      project: online-shopping
+      source:
+        repoURL: https://github.com/bankolejohn/online-microservices-test.git
+        targetRevision: main
+        path: charts/mono-chart
+        helm:
+          valueFiles:
+            # Each service uses its own values file — SAME chart
+            - "values/{{.service}}.yaml"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: shopping
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

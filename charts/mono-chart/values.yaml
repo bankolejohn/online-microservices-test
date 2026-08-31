@@ -1,0 +1,89 @@
+# ============================================================================
+# Mono Chart — Default Values (the "contract")
+# ============================================================================
+# Every parameter a service can configure is listed here with a default.
+# Per-service values files (values/<service>.yaml) override these.
+#
+# This file also serves as documentation: "what can I configure per service?"
+# ============================================================================
+
+# --- Identity (REQUIRED — every service must set these) ---
+serviceName: myapp          # Used for names, labels, selectors
+environment: dev            # dev | staging | prod — appended to resource names
+
+# --- Image ---
+image:
+  repository: ""            # e.g. "ghcr.io/bankolejohn/online-shopping"
+  name: myapp               # image name (usually same as serviceName)
+  tag: latest
+  pullPolicy: IfNotPresent
+pullSecrets: []             # e.g. [{name: ghcr-credentials}]
+
+# --- Scaling ---
+replicas: 1
+
+# --- Networking ---
+containerPort: 80
+servicePort: 80
+
+# --- Health checks ---
+health:
+  enabled: true
+  path: /health
+  periodSeconds: 10
+  initialDelaySeconds: 10
+
+# --- Resources ---
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# --- Security ---
+serviceAccountName: ""      # empty = default SA
+automountServiceAccountToken: true
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+# --- Environment variables ---
+# List of env vars — supports plain values and valueFrom (configMap/secret)
+env: []
+# Example:
+#   env:
+#     - name: PORT
+#       value: "3002"
+#     - name: DATABASE_URL
+#       valueFrom:
+#         secretKeyRef:
+#           name: postgres-credentials
+#           key: DATABASE_URL
+
+# --- Autoscaling (HPA) ---
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# --- Pod Disruption Budget ---
+pdb:
+  enabled: false
+  minAvailable: 1
+
+# --- Ingress (usually only the frontend enables this) ---
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  host: ""
+  path: /
+  pathType: Prefix

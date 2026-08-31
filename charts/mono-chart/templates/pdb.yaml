@@ -1,0 +1,16 @@
+# ============================================================================
+# PodDisruptionBudget — only created if pdb.enabled = true
+# ============================================================================
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "mono-chart.fullname" . }}
+  labels:
+    {{- include "mono-chart.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "mono-chart.selectorLabels" . | nindent 6 }}
+{{- end }}

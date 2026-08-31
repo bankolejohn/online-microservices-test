@@ -1,0 +1,45 @@
+# Frontend Service — values for the mono-chart
+serviceName: frontend-service
+environment: dev
+
+image:
+  repository: ""
+  name: frontend-service
+  tag: latest
+  pullPolicy: Never
+
+replicas: 2
+containerPort: 80
+servicePort: 80
+
+serviceAccountName: frontend-sa
+automountServiceAccountToken: false
+
+# nginx runs as root — override the non-root default
+podSecurityContext:
+  runAsNonRoot: false
+
+# nginx has no /health endpoint in this image
+health:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+# Frontend is the ONLY service exposed via Ingress
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  path: /
+  pathType: Prefix
+
+pdb:
+  enabled: true
+  minAvailable: 1

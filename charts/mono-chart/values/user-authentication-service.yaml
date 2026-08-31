@@ -1,0 +1,32 @@
+# User Authentication Service — values for the mono-chart
+serviceName: user-authentication-service
+environment: dev
+
+image:
+  repository: ""
+  name: user-authentication-service
+  tag: latest
+  pullPolicy: Never
+
+replicas: 2
+containerPort: 3003
+servicePort: 3003
+
+serviceAccountName: auth-sa
+
+health:
+  enabled: true
+  path: /health
+
+env:
+  - name: PORT
+    value: "3003"
+  - name: JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: auth-secrets
+        key: jwt-secret
+
+pdb:
+  enabled: true
+  minAvailable: 1

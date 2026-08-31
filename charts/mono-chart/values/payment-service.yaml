@@ -1,0 +1,28 @@
+# Payment Service — values for the mono-chart
+serviceName: payment-service
+environment: dev
+
+image:
+  repository: ""
+  name: payment-service
+  tag: latest
+  pullPolicy: Never
+
+replicas: 2
+containerPort: 5002
+servicePort: 5002
+
+serviceAccountName: payment-sa
+automountServiceAccountToken: false
+
+health:
+  enabled: true
+  path: /health
+
+env:
+  - name: PORT
+    value: "5002"
+
+pdb:
+  enabled: true
+  minAvailable: 1

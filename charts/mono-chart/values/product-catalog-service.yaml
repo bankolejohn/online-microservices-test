@@ -1,0 +1,34 @@
+# Product Catalog Service — values for the mono-chart
+serviceName: product-catalog-service
+environment: dev
+
+image:
+  repository: ""
+  name: product-catalog-service
+  tag: latest
+  pullPolicy: Never
+
+replicas: 2
+containerPort: 3001
+servicePort: 3001
+
+serviceAccountName: product-catalog-sa
+automountServiceAccountToken: false
+
+health:
+  enabled: true
+  path: /health
+
+env:
+  - name: PORT
+    value: "3001"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  enabled: true
+  minAvailable: 1

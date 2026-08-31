@@ -1,0 +1,36 @@
+# ============================================================================
+# Mono Chart — ONE reusable chart for ANY microservice
+# ============================================================================
+# This is the "Ultimate Helm Chart" pattern (ref: Ewere Diagboya).
+#
+# The idea: instead of writing a chart per service (200 charts to maintain),
+# you write ONE parameterized chart and deploy it N times with different
+# values. Add a service = new values file + new `helm install`. The chart
+# itself never changes.
+#
+# Benefits:
+#   - DRY: one template, maintained once
+#   - Golden path: every service deploys the same way
+#   - Consistency: impossible for services to drift apart
+#   - Scales to hundreds of services without chart sprawl
+#
+# Tradeoff:
+#   - Single point of failure: a bug in this chart affects ALL services
+#   - Requires a well-designed, thoroughly-tested template
+# ============================================================================
+apiVersion: v2
+name: mono-chart
+description: A single reusable Helm chart for deploying any microservice
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+maintainers:
+  - name: Bankole John
+    url: https://github.com/bankolejohn
+
+keywords:
+  - mono-chart
+  - microservices
+  - golden-path
+  - platform-engineering

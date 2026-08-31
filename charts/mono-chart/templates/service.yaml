@@ -1,0 +1,23 @@
+# ============================================================================
+# Service — stable ClusterIP endpoint
+# ============================================================================
+# NOTE: The service name uses ONLY serviceName (not the -environment suffix)
+# so that inter-service DNS (http://cart-service:3002) stays stable across
+# environments. The Deployment/pods have the -environment suffix; the Service
+# selector matches via the app label.
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.serviceName }}
+  labels:
+    {{- include "mono-chart.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "mono-chart.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.servicePort }}
+      targetPort: http
+      protocol: TCP
